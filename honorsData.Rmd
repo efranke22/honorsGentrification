@@ -1,0 +1,65 @@
+---
+title: "Honors Data Exploration"
+author: "Erin Franke"
+date: "7/23/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidycensus)
+library(tidyverse)
+library(survey)
+library(srvyr)
+library(sf)
+```
+
+# Import Data using tidycensus
+
+Get Minnesota 2010 census data
+```{r}
+census_api_key("f0d9e7b9eb0a91da1b9d33277cf20e264c19e197", install = TRUE, overwrite=TRUE)
+
+# 2010 
+variables2010 <- load_variables(year = 2010, dataset = "sf1")
+dicennial2010 <- get_decennial(year = 2010, state = "MN", geography = "tract", variables = c("H012001", "P008001", "P008002", "P008003", "P008004", "P016001", "P016002", "P016003", "H003001", "H003002", "H003003", "H004001", "H004002", "H004003", "H004004", "P012002", "P012010", "P012011", "P012012", "P012026", "P012034", "P012035", "P012036"))
+# 2006 - 2010 ACS (for additional income/education information)
+acsvariables2010 <- load_variables(year = 2010, dataset = "acs5") 
+acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c("B06011_001", "B19313_001", 	
+"B23006_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001"))
+
+# 2011 - 2015 ACS
+acs2015 <- get_acs(year = 2015, state = "MN", geography = "tract", variables = c("B06011_001", "B19313_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001"))
+
+# 2016 - 2020 ACS
+acs2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c("B06011_001", "B19313_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001"))
+```
+
+2010 CENSUS DATA
+H012001 - Average household size Total
+P008001, P008002, P008003, P008004, P008005, P008006, P008007, P008008, P008009, P008026, P008047 (race)
+P016001, P016002, P016003 (age - under and over 18)
+H003001, H003002, H003003 (occupancy status)
+H004001, H004002, H004003, H004004 (tenure)
+H001001 (total housing units)
+H002001-6 (urban and rural)
+P012002, P012007-13, P012026, P012031-37 (age by sex)
+
+2006-2010 ACS DATA
+B06011_001 Estimate!!Median income in the past 12 months!!Total
+B19313_001 Estimate!!Aggregate income in the past 12 months (in 2010 inflation-adjusted dollars)
+B23006_023 EDUCATIONAL ATTAINMENT BY EMPLOYMENT STATUS FOR THE POPULATION 25 TO 64 YEARS
+B25035_001 Estimate!!Median year structure built
+B25034_001 Estimate!!Total year structure built (B25034_002, "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010")
+B25058_001 Median contract rent
+B25064_001 Median gross rent
+
+```{r}
+
+```
+
+
+

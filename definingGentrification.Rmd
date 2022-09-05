@@ -1,0 +1,117 @@
+---
+title: "Defining Gentrification"
+author: "Erin Franke"
+date: "9/5/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Methods for defining gentrifiable tracts
+
+Professor Lisa Bates (2013): census tracts must meet at least 3/4 of the criteria
+- a higher percentage of renters than the citywide rate
+- a higher percentage of people of color than citywide
+- a larger share of low-income households than the citywide rate
+- a lower rate of residents with bachelor’s degrees than the city
+
+Professor Lance Freeman (2005): all three measurements below must be met
+- restricts analysis to neighborhoods within the central city of any given metropolitan area. \
+- isolates low-income census tracts, using the metropolitan area median housing income as the comparison rather than the citywide median. \
+- looks at the share of the housing stock built within the previous 20 years as a measure of relative disinvestment. Tracts in which the share of housing built in the previous 20 years is less than the median for all tracts throughout the metropolitan area are identified.
+
+Lei Ding (2016) of the Federal Reserve Bank of Philadelphia (2016) \
+- median household income is less than the citywide median income
+
+```{r}
+tract2010 <- dicennial2010 %>%
+  filter(word(NAME, 4) %in% c("Hennepin", "Ramsey")) %>%
+  mutate(tract = word(NAME, 3),
+         tract = str_remove(tract, ","),
+         county = word(NAME, 4)) %>%
+  select(-NAME) %>%
+  pivot_wider(names_from = variable, values_from = value) %>%
+  rename("AvgHouseholdSize" = "H012001", 
+         "TotalPopRace" = "P008001", 
+         "PopOneRace" = "P008002", 
+         "PopWhiteAlone" = "P008003", 
+         "PopBlackAlone"= "P008004", 
+         "PopAge" = "P016001", 
+         "PopUnder18" = "P016002", 
+         "PopOver18" = "P016003", 
+         "TotalHousingUnits" = "H003001", 
+         "OccupiedHousingUnits" = "H003002", 
+         "VacantHousingUnits" = "H003003", 
+         "OwnershipTotal" = "H004001", 
+         "OwnedWithMortgage" = "H004002", 
+         "OwnedFreeClear" = "H004003", 
+         "RentOccupied" = "H004004", 
+         "MalePop" = "P012002", 
+         "Male22to24" = "P012010", 
+         "Male25to29" = "P012011", 
+         "Male30to34" = "P012012", 
+         "FemalePop" = "P012026", 
+         "Female22to24" = "P012034", 
+         "Female25to29" = "P012035", 
+         "Female30to34" = "P012036") %>%
+  left_join((acs2010 %>%
+               filter(word(NAME, 4) %in% c("Hennepin", "Ramsey")) %>%
+               mutate(tract = word(NAME, 3),
+                      tract = str_remove(tract, ","),
+                      county = word(NAME, 4)) %>%
+               select(-NAME) %>%
+               pivot_wider(names_from = variable, values_from = c(estimate, moe)) %>%
+               rename("medianIncome" = "estimate_B06011_001", 
+                      "aggregateIncome" = "estimate_B19313_001", 
+                      "bachelors25to64" = "estimate_B23006_023",
+                      "total25to64" = "estimate_B23006_001", 
+                      "medYrStructureBuilt" = "estimate_B25035_001", 
+                      "totalStructure" = "estimate_B25034_001", 
+                      "builtSince2005" = "estimate_B25034_002", 
+                      "built2000to2004" = "estimate_B25034_003", 
+                      "built1990to1999" = "estimate_B25034_004", 
+                      "built1980to1989" = "estimate_B25034_005", 
+                      "built1970to1979" = "estimate_B25034_006", 
+                      "built1960to1969" = "estimate_B25034_007", 
+                      "built1950to1959" = "estimate_B25034_008", 
+                      "built1940to1949" = "estimate_B25034_009", 
+                      "builtPre1940" = "estimate_B25034_010", 
+                      "medContractRent" = "estimate_B25058_001", 
+                      "medGrossRent" = "estimate_B25064_001", 
+                      "medIncMoe" = "moe_B06011_001", 
+                      "aggIncMoe" = "moe_B19313_001", 
+                      "bachelors25to64Moe" = "moe_B23006_023",
+                      "total25to64Moe" = "moe_B23006_001", 
+                      "medYrStructureBuiltMoe" = "moe_B25035_001", 
+                      "totalStructureMoe" = "moe_B25034_001", 
+                      "builtSince2005Moe" = "moe_B25034_002", 
+                      "built2000to2004Moe" = "moe_B25034_003", 
+                      "built1990to1999Moe" = "moe_B25034_004", 
+                      "built1980to1989Moe" = "moe_B25034_005", 
+                      "built1970to1979Moe" = "moe_B25034_006", 
+                      "built1960to1969Moe" = "moe_B25034_007", 
+                      "built1950to1959Moe" = "moe_B25034_008", 
+                      "built1940to1949Moe" = "moe_B25034_009", 
+                      "builtPre1940Moe" = "moe_B25034_010", 
+                      "medContractRentMoe" = "moe_B25058_001", 
+                      "medGrossRentMoe" = "moe_B25064_001")), 
+            by = c("tract", "county", "GEOID"))
+```
+
+Idenify gentrifiable tracts 
+
+```{r}
+# ding method
+gentrifiable <- tract2010 %>%
+  group_by(county) %>%
+  mutate(countyAvgInc = mean(medianIncome)) %>%
+  mutate(Ding = as.factor(case_when(medianIncome > countyAvgInc ~ 0, 
+                          TRUE ~ 1))) %>%
+  select(-countyAvgInc)
+
+# freeman method
+
+```
+
