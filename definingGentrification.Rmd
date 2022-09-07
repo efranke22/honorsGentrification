@@ -9,109 +9,139 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(tidycensus)
+library(tidyverse)
+library(survey)
+library(srvyr)
+library(sf)
+library(PrettyCols)
+library(ggtext)
+library(ggrepel)
+river_lakes <- st_read("ShpData/shp_water_lakes_rivers")
+roads <- st_read("ShpData/tl_2019_27_prisecroads")
+```
+
+# Create organized table of 2010 census tract information
+
+```{r}
+tract2010 <- dicennial2010 %>%
+  left_join(acs2010, by = c("tract", "county", "GEOID"))
+```
+
 # Methods for defining gentrifiable tracts
 
-Professor Lisa Bates (2013): census tracts must meet at least 3/4 of the criteria
-- a higher percentage of renters than the citywide rate
-- a higher percentage of people of color than citywide
-- a larger share of low-income households than the citywide rate
-- a lower rate of residents with bachelor’s degrees than the city
+Lei Ding (2016) of the Federal Reserve Bank of Philadelphia (2016) \
+- median household income is less than the citywide median income
+
+```{r}
+gentDing <- tract2010 %>%
+  filter(county %in% c("Hennepin", "Ramsey")) %>%
+  group_by(county) %>%
+  mutate(countyAvgInc = weighted.mean(medianIncome, TotalPopRace), 
+         Ding = case_when(medianIncome > countyAvgInc ~ 0, 
+                          TRUE ~ 1)) %>%
+  select(-countyAvgInc)
+```
 
 Professor Lance Freeman (2005): all three measurements below must be met
 - restricts analysis to neighborhoods within the central city of any given metropolitan area. \
 - isolates low-income census tracts, using the metropolitan area median housing income as the comparison rather than the citywide median. \
 - looks at the share of the housing stock built within the previous 20 years as a measure of relative disinvestment. Tracts in which the share of housing built in the previous 20 years is less than the median for all tracts throughout the metropolitan area are identified.
 
-Lei Ding (2016) of the Federal Reserve Bank of Philadelphia (2016) \
-- median household income is less than the citywide median income
-
 ```{r}
-tract2010 <- dicennial2010 %>%
-  filter(word(NAME, 4) %in% c("Hennepin", "Ramsey")) %>%
-  mutate(tract = word(NAME, 3),
-         tract = str_remove(tract, ","),
-         county = word(NAME, 4)) %>%
-  select(-NAME) %>%
-  pivot_wider(names_from = variable, values_from = value) %>%
-  rename("AvgHouseholdSize" = "H012001", 
-         "TotalPopRace" = "P008001", 
-         "PopOneRace" = "P008002", 
-         "PopWhiteAlone" = "P008003", 
-         "PopBlackAlone"= "P008004", 
-         "PopAge" = "P016001", 
-         "PopUnder18" = "P016002", 
-         "PopOver18" = "P016003", 
-         "TotalHousingUnits" = "H003001", 
-         "OccupiedHousingUnits" = "H003002", 
-         "VacantHousingUnits" = "H003003", 
-         "OwnershipTotal" = "H004001", 
-         "OwnedWithMortgage" = "H004002", 
-         "OwnedFreeClear" = "H004003", 
-         "RentOccupied" = "H004004", 
-         "MalePop" = "P012002", 
-         "Male22to24" = "P012010", 
-         "Male25to29" = "P012011", 
-         "Male30to34" = "P012012", 
-         "FemalePop" = "P012026", 
-         "Female22to24" = "P012034", 
-         "Female25to29" = "P012035", 
-         "Female30to34" = "P012036") %>%
-  left_join((acs2010 %>%
-               filter(word(NAME, 4) %in% c("Hennepin", "Ramsey")) %>%
-               mutate(tract = word(NAME, 3),
-                      tract = str_remove(tract, ","),
-                      county = word(NAME, 4)) %>%
-               select(-NAME) %>%
-               pivot_wider(names_from = variable, values_from = c(estimate, moe)) %>%
-               rename("medianIncome" = "estimate_B06011_001", 
-                      "aggregateIncome" = "estimate_B19313_001", 
-                      "bachelors25to64" = "estimate_B23006_023",
-                      "total25to64" = "estimate_B23006_001", 
-                      "medYrStructureBuilt" = "estimate_B25035_001", 
-                      "totalStructure" = "estimate_B25034_001", 
-                      "builtSince2005" = "estimate_B25034_002", 
-                      "built2000to2004" = "estimate_B25034_003", 
-                      "built1990to1999" = "estimate_B25034_004", 
-                      "built1980to1989" = "estimate_B25034_005", 
-                      "built1970to1979" = "estimate_B25034_006", 
-                      "built1960to1969" = "estimate_B25034_007", 
-                      "built1950to1959" = "estimate_B25034_008", 
-                      "built1940to1949" = "estimate_B25034_009", 
-                      "builtPre1940" = "estimate_B25034_010", 
-                      "medContractRent" = "estimate_B25058_001", 
-                      "medGrossRent" = "estimate_B25064_001", 
-                      "medIncMoe" = "moe_B06011_001", 
-                      "aggIncMoe" = "moe_B19313_001", 
-                      "bachelors25to64Moe" = "moe_B23006_023",
-                      "total25to64Moe" = "moe_B23006_001", 
-                      "medYrStructureBuiltMoe" = "moe_B25035_001", 
-                      "totalStructureMoe" = "moe_B25034_001", 
-                      "builtSince2005Moe" = "moe_B25034_002", 
-                      "built2000to2004Moe" = "moe_B25034_003", 
-                      "built1990to1999Moe" = "moe_B25034_004", 
-                      "built1980to1989Moe" = "moe_B25034_005", 
-                      "built1970to1979Moe" = "moe_B25034_006", 
-                      "built1960to1969Moe" = "moe_B25034_007", 
-                      "built1950to1959Moe" = "moe_B25034_008", 
-                      "built1940to1949Moe" = "moe_B25034_009", 
-                      "builtPre1940Moe" = "moe_B25034_010", 
-                      "medContractRentMoe" = "moe_B25058_001", 
-                      "medGrossRentMoe" = "moe_B25064_001")), 
-            by = c("tract", "county", "GEOID"))
+# find metro area mean income
+tract2010 %>%
+  st_drop_geometry() %>%
+  summarize(meanMetroInc = weighted.mean(medianIncome, TotalPopRace, na.rm = TRUE))
+
+# find average amount of housing built in the last twenty years and identify gentrifiable tracts accordingly
+gentFreeman <- tract2010 %>%
+  filter(county %in% c("Hennepin", "Ramsey")) %>%
+  mutate(built1980to2004 = (built2000to2004 + built1990to1999 + built1980to1989)  / totalStructure, 
+         medianRecHome = weighted.mean(built1980to2004, totalStructure, na.rm = TRUE), 
+         freeman = case_when(medianIncome <= 35167.87 & built1980to2004 <= medianRecHome ~ 1, 
+                             TRUE ~ 0)) %>%
+  select(freeman, tract) %>%
+  st_drop_geometry()
 ```
 
-Idenify gentrifiable tracts 
+Professor Lisa Bates (2013): census tracts must meet at least 3/4 of the criteria \
+- a higher percentage of renters than the citywide rate \
+- a higher percentage of people of color than citywide \
+- a larger share of low-income households than the citywide rate \
+- a lower rate of residents with bachelor’s degrees than the citywide rate \
 
 ```{r}
-# ding method
-gentrifiable <- tract2010 %>%
+gentBates <- tract2010 %>%
+  filter(county %in% c("Hennepin", "Ramsey")) %>%
   group_by(county) %>%
-  mutate(countyAvgInc = mean(medianIncome)) %>%
-  mutate(Ding = as.factor(case_when(medianIncome > countyAvgInc ~ 0, 
-                          TRUE ~ 1))) %>%
-  select(-countyAvgInc)
-
-# freeman method
-
+  mutate(CityAvgRent = weighted.mean(RentOccupied/OwnershipTotal, OwnershipTotal),
+         CityPoc = weighted.mean((TotalPopRace - PopWhiteAlone)/TotalPopRace, TotalPopRace), 
+         CityAvgInc = weighted.mean(medianIncome, TotalPopRace), 
+         CityBachelors = weighted.mean(bachelors25to64/total25to64, total25to64)) %>%
+  ungroup() %>%
+  mutate(AvgRent = RentOccupied/OwnershipTotal,
+         Poc = (TotalPopRace - PopWhiteAlone)/TotalPopRace, 
+         Bachelors = bachelors25to64/total25to64, 
+         highRent = case_when(AvgRent >= CityAvgRent ~ 1, 
+                                        TRUE ~ 0), 
+         highPoc = case_when(Poc >= CityPoc ~ 1, 
+                                       TRUE ~ 0), 
+         lowInc = case_when(medianIncome <= CityAvgInc ~ 1, 
+                                      TRUE ~ 0), 
+         lowBachelors = case_when(Bachelors <= CityBachelors ~ 1, 
+                                            TRUE ~ 0), 
+         totGent = highRent + highPoc + lowInc + lowBachelors, 
+         bates = case_when(totGent >= 3 ~ 1, 
+                                     TRUE ~0)) %>%
+  select(bates, tract) %>%
+  st_drop_geometry()
 ```
+
+# Combine methods and identify gentrifiable tracts
+
+```{r}
+gentrifiable <- gentDing %>%
+  left_join(gentFreeman, by = "tract") %>%
+  left_join(gentBates, by = "tract") %>%
+  mutate(canGent = as.factor(case_when(Ding+freeman + bates >=2 ~ 1, 
+                                  TRUE ~ 0)))
+```
+
+```{r}
+roads_sub <- st_crop(roads,st_bbox(gentrifiable))
+
+gentrifiable %>%
+  mutate(canGent = case_when(canGent == "1" ~ "Yes", 
+                             TRUE ~ "No")) %>%
+  ggplot()+
+  geom_sf(aes(fill=canGent), lwd = 0.2, color = "white")+
+  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
+  theme_classic()+
+  labs(title = "Gentrifiable census tracts in Minneapolis-Saint Paul in 2010", fill = "Gentrifiable", x = "", y = "")+
+  annotate("point", x = -93.1691, y = 44.938, colour = "orange", size = 1) +
+  theme(axis.line = element_blank(), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(),
+        legend.title = element_markdown(family = "mono"),
+        plot.title.position = "plot", 
+        plot.title = element_markdown(family = "mono", size = 10))+
+  scale_fill_pretty_d(name = "Autumn", direction = -1)
+  
+locations <- data.frame(location = c("Macalester College", "Target Field", "Capital"), latitude = c(44.9380, 44.9817, 44.9544), longitude = c(93.1691, 93.2776, 93.1041))
+```
+
+# Methods for idenifying tracts that did gentrify
+
+Freeman \
+- change in the share of adults with college degrees is greater than the regional change \
+- tract experienced an increase in home values (in constant dollars).
+
+Ding: \
+- change in the share of adults with college degrees greater than the city-level change \
+- change in median rents above the citywide change OR \
+- change in median home value greater than the citywide change. \
+
+
 
