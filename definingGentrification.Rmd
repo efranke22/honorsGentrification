@@ -106,7 +106,9 @@ gentrifiable <- gentDing %>%
   left_join(gentFreeman, by = "tract") %>%
   left_join(gentBates, by = "tract") %>%
   mutate(canGent = as.factor(case_when(Ding+freeman + bates >=2 ~ 1, 
-                                  TRUE ~ 0)))
+                                  TRUE ~ 0))) %>%
+  filter(tract != "9800") %>%
+  mutate(tract = as.numeric(tract))
 ```
 
 ```{r}
@@ -129,8 +131,104 @@ gentrifiable %>%
         plot.title = element_markdown(family = "mono", size = 10))+
   scale_fill_pretty_d(name = "Autumn", direction = -1)
   
-locations <- data.frame(location = c("Macalester College", "Target Field", "Capital"), latitude = c(44.9380, 44.9817, 44.9544), longitude = c(93.1691, 93.2776, 93.1041))
+locations <- data.frame(location = c("Macalester College"), latitude = c(44.9380), longitude = c(93.1691))
 ```
+
+# Identifying census tract changes from 2010 to 2020
+
+```{r}
+acs2010metro <- acs2010 %>%
+  filter(county %in% c("Hennepin", "Ramsey")) %>%
+  arrange(GEOID) %>%
+  mutate(year2010 = 2010) %>%
+  select(tract, year2010, county)
+acs2020metro <- acs2020  %>%
+  filter(county %in% c("Hennepin", "Ramsey")) %>%
+  arrange(GEOID) %>%
+  mutate(year2020 = 2020) %>%
+  select(tract, year2020, county)
+
+acs2020metro %>%
+  full_join(acs2010metro, by= c("tract")) %>%
+  filter(is.na(year2020) | is.na(year2010) |is.na(county.x)|is.na(county.y)| county.x != county.y) %>% 
+  mutate(tract = as.numeric(tract)) %>%
+  arrange(tract)
+```
+
+Changes
+- Hennepin 38 in 2010 --> 38.01, 38.02 in 2020 \
+- Hennepin 202 --> 202.01, 202.02 \
+- Hennepin 232 --> 232.01, 232.02 \
+- Hennepin 234 --> 234.01, 234.02 \
+- Hennepin 249.01, 249.02 --> 249.04 in 2020 \ ****
+- Hennepin 257.01 --> 257.03, 257.04 in 2020 \
+- Hennepin 259.03 --> 259.08, 259.09 in 2020 \
+- Hennepin 260.16 --> 260.23, 260.24 in 2020 \
+- Hennepin 260.18 --> 260.25, 260.26 in 2020 \
+- Hennepin 260.22 --> 260.27, 260.28 in 2020 \
+- Hennepin 264.02 --> 264.05, 264.06 in 2020 \
+- Hennepin 265.12 --> 265.15, 265.16 \
+- Hennepin 266.12 --> 266.14, 266.15 \
+- Hennepin 266.13 --> 266.16, 266.17 \
+- Hennepin 267.10 --> 267.24, 267.25, 267.26 \
+- Hennepin 267.14 --> 267.17, 267.18 \
+- Hennepin 267.15 --> 267.19, 167.22, 267.23 \
+- Hennepin 267.16 --> 267.20, 267.21 \
+- Hennepin 268.10 --> 268.27, 268.28 \
+- Hennepin 268.20 --> 268.24, 268.25, 268.26 \
+- Hennepin 269.09	--> 269.11, 269.12 \
+- Hennepin 272.01 --> 272.04, 272.05 \
+- Hennepin 277.00 --> 277.01, 277.02, 277.03 \
+- Ramsey 342.02 --> 342.03, 342.04 \
+- Ramsey 376.02 --> 376.03, 376.04 \
+- Ramsey 401.00 --> 401.01, 401.02 \
+- Ramsey 406.04 --> 406.05, 406.06 \
+- Ramsey 407.03 --> Ramsey 407.08, 407.09 \
+- Ramsey 408.02, 408.03 --> 408.04, 408.05 \
+- Ramsey 430.00 --> 430.01, 430.02 \
+- Hennepin 1023.00 + 1029.00 --> Hennepin 1263.00 in 2020 \
+- Hennepin 1040.00 --> 1040.01, 1040.02 \
+- Hennepin 1048.00 --> 1048.01, 1048.02 \
+- Hennepin 1049.00 --> 1049.01, 1049.02 \
+- Hennepin 1261.00 --> 1261.01, 1261.02 \
+- Hennepin 1262.00 --> 1262.01, 1262.02 \
+
+```{r}
+# filter for tracts to be duplicated (tracts that become 2 tracts)
+halvedtracts <- gentrifiable %>%
+  filter(tract %in% c(38.00, 202.00, 232.00, 234.00, 257.01, 259.03, 260.16, 260.18, 260.22, 264.02, 265.12, 266.12, 266.13, 267.14, 267.16, 268.10, 269.09, 272.01, 342.02, 376.02, 401.00, 406.04, 407.03, 430.00, 1040.00, 1048.00, 1049.00, 1261.00, 1262.00)) %>%
+  mutate(modified = "double")
+
+#filter for tracts to be tripled (tracts to become 3 tracts)
+thirdtracts <- gentrifiable %>%
+  filter(tract %in% c(267.10, 267.15, 268.20, 277.00)) %>%
+  mutate(modified = "triple")
+
+#filter for tracts to be combined 
+oddtracts <- gentrifiable %>%
+  filter(tract %in% c(408.02, 408.03, 1023.00, 1029.00)) %>%
+  mutate(modified = "merged")
+  
+
+
+gentrifiable %>%
+  filter(!(tract %in% c(408.02, 408.03, 1023.00, 1029.00, 267.10, 267.15, 268.20, 277.00, 38.00, 202.00, 232.00, 234.00, 257.01, 259.03, 260.16, 260.18, 260.22, 264.02, 265.12, 266.12, 266.13, 267.14, 267.16, 268.10, 269.09, 272.01, 342.02, 376.02, 401.00, 406.04, 407.03, 430.00, 1040.00, 1048.00, 1049.00, 1261.00, 1262.00))) %>%
+  mutate(modified = "none") %>%
+  bind_rows(halvedtracts) %>%
+  bind_rows(halvedtracts) %>%
+  bind_rows(thirdtracts) %>%
+  bind_rows(thirdtracts) %>%
+  bind_rows(thirdtracts) %>%
+  bind_rows(oddtracts)
+
+acs2020 %>%
+  filter(county %in% c("Hennepin", "Ramsey")) %>%
+  mutate(modified_tract = tract, 
+         modified_tract = case_when(modified_tract == "" ~ ,),
+         modified = case_when(tract != modified_tract ~ 1, 
+                              TRUE ~ 0))
+```
+
 
 # Methods for idenifying tracts that did gentrify
 
