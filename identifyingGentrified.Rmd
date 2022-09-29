@@ -268,7 +268,7 @@ gentrifiable_groups <- gentrifiable %>%
 ```
 
 Create final `gentrifiable_clean` dataset, which is the same as the original `gentrifiable` but just includes the manipulated tracts.
-```{t}
+```{r}
 gentrifiable_clean <- gentrifiable %>%
   filter(!(tract %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03))) %>%
   bind_rows(gentrifiable_groups) %>%
@@ -294,7 +294,7 @@ gentrified <- final %>%
                           TRUE ~ 0)))
 ```
 
-Understand what proportion of tracts that could gentrify did. Out of the 226 tracts, Freeman and Ding agreed that 129 did not gentrify and 44 did. Freeman's methods yielded 45 gentrifying that ding did not, while Ding's methods identified 8 gentrifying the Freeman did not.
+Understand what proportion of tracts that could gentrify did. Out of the 226 tracts, Freeman and Ding agreed that 129 did not gentrify and 44 did. Freeman's methods yielded 45 gentrifying that Ding did not, while Ding's methods identified 8 gentrifying the Freeman did not.
 ```{r}
 gentrified %>%
   filter(canGent == "1") %>%
