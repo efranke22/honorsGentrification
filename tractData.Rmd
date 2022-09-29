@@ -1,0 +1,176 @@
+---
+title: "Honors Data Exploration"
+author: "Erin Franke"
+date: "7/23/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is my first file in my data cleaning and exploration process. \
+Steps in this file: import data using Tidycensus and choose variables of interest. \
+
+## Load libraries 
+
+```{r}
+library(tidycensus)
+library(tidyverse)
+library(survey)
+library(srvyr)
+library(sf)
+```
+
+## Import Data using tidycensus
+
+```{r}
+census_api_key("f0d9e7b9eb0a91da1b9d33277cf20e264c19e197", install = TRUE, overwrite=TRUE)
+```
+
+The beginning of this study is 2010. Understand what variables are available through the American Community Survey in 2010 (which represents the 2006-2010) and the decennial census. 
+```{r}
+# View variables available from the 2010 census 
+variables2010 <- load_variables(year = 2010, dataset = "sf1")
+# Select variables of interest from 2010 census 
+dicennial2010 <- get_decennial(year = 2010, state = "MN", geography = "tract", variables = c("H012001", "P008001", "P008002", "P008003", "P008004", "P016001", "P016002", "P016003", "H003001", "H003002", "H003003", "H004001", "H004002", "H004003", "H004004", "P012002", "P012010", "P012011", "P012012", "P012026", "P012034", "P012035", "P012036"), geometry = TRUE, output='wide') %>%
+  filter(word(NAME, 4) %in% c("Hennepin", "Ramsey", "Anoka", "Carver", "Dakota", "Scott", "Washington")) %>% # select 7 metropolitan counties
+  mutate(tract = word(NAME, 3),
+         tract = str_remove(tract, ","), # create numeric tract variable
+         county = word(NAME, 4)) %>% # create county variable 
+  select(-NAME) %>%
+  rename("AvgHouseholdSize" = "H012001", 
+         "TotalPopRace" = "P008001", 
+         "PopOneRace" = "P008002", 
+         "PopWhiteAlone" = "P008003", 
+         "PopBlackAlone"= "P008004", 
+         "PopAge" = "P016001", 
+         "PopUnder18" = "P016002", 
+         "PopOver18" = "P016003", 
+         "TotalHousingUnits" = "H003001", 
+         "OccupiedHousingUnits" = "H003002", 
+         "VacantHousingUnits" = "H003003", 
+         "OwnershipTotal" = "H004001", 
+         "OwnedWithMortgage" = "H004002", 
+         "OwnedFreeClear" = "H004003", 
+         "RentOccupied" = "H004004", 
+         "MalePop" = "P012002", 
+         "Male22to24" = "P012010", 
+         "Male25to29" = "P012011", 
+         "Male30to34" = "P012012", 
+         "FemalePop" = "P012026", 
+         "Female22to24" = "P012034", 
+         "Female25to29" = "P012035", 
+         "Female30to34" = "P012036") 
+
+# View variables from 2006 - 2010 ACS (for additional income/education information)
+acsvariables2010 <- load_variables(year = 2010, dataset = "acs5") 
+# Select variables of interest from 2010 ACS
+acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c("B06011_001", "B19313_001", "B23006_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001"), output = 'wide') %>%
+  filter(word(NAME, 4) %in% c("Hennepin", "Ramsey", "Anoka", "Carver", "Dakota", "Scott", "Washington"))%>%
+               mutate(tract = word(NAME, 3),
+                      tract = str_remove(tract, ","),
+                      county = word(NAME, 4)) %>%
+               select(-NAME) %>%
+               rename("medianIncome" = "B06011_001E", 
+                      "aggregateIncome" = "B19313_001E", 
+                      "bachelors25to64" = "B23006_023E",
+                      "total25to64" = "B23006_001E", 
+                      "medYrStructureBuilt" = "B25035_001E", 
+                      "totalStructure" = "B25034_001E", 
+                      "builtSince2005" = "B25034_002E", 
+                      "built2000to2004" = "B25034_003E", 
+                      "built1990to1999" = "B25034_004E", 
+                      "built1980to1989" = "B25034_005E", 
+                      "built1970to1979" = "B25034_006E", 
+                      "built1960to1969" = "B25034_007E", 
+                      "built1950to1959" = "B25034_008E", 
+                      "built1940to1949" = "B25034_009E", 
+                      "builtPre1940" = "B25034_010E", 
+                      "medContractRent" = "B25058_001E", 
+                      "medGrossRent" = "B25064_001E", 
+                      "medIncMoe" = "B06011_001M", 
+                      "aggIncMoe" = "B19313_001M", 
+                      "bachelors25to64Moe" = "B23006_023M",
+                      "total25to64Moe" = "B23006_001M", 
+                      "medYrStructureBuiltMoe" = "B25035_001M", 
+                      "totalStructureMoe" = "B25034_001M", 
+                      "builtSince2005Moe" = "B25034_002M", 
+                      "built2000to2004Moe" = "B25034_003M", 
+                      "built1990to1999Moe" = "B25034_004M", 
+                      "built1980to1989Moe" = "B25034_005M", 
+                      "built1970to1979Moe" = "B25034_006M", 
+                      "built1960to1969Moe" = "B25034_007M", 
+                      "built1950to1959Moe" = "B25034_008M", 
+                      "built1940to1949Moe" = "B25034_009M", 
+                      "builtPre1940Moe" = "B25034_010M", 
+                      "medContractRentMoe" = "B25058_001M", 
+                      "medGrossRentMoe" = "B25064_001M", 
+                      "medianHomeValue" = "B25107_001E", 
+                      "medianHomevalueMoe" = "B25107_001M")
+```
+
+There is no census for 2015, but we can load the same variables as from the 2010 ACS. 
+```{r}
+# Select variables of interest from 2015 ACS
+acs2015 <- get_acs(year = 2015, state = "MN", geography = "tract", variables = c("B06011_001", "B19313_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001"), output = "wide")
+```
+
+Finally, we can do the same thing for the 2020 ACS. There is a decennial census for 2020 but the variables we selected from 2010 are not yet included in that dataset, so I just stuck with the ACS.
+```{r}
+# Select variables of interest from 2020 ACS
+acs2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c("B06011_001", "B19313_001", "B23006_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001"), output = "wide") %>%
+  filter(word(NAME, 4) %in% c("Hennepin", "Ramsey", "Anoka", "Carver", "Dakota", "Scott", "Washington"))%>%
+               mutate(tract = word(NAME, 3),
+                      tract = str_remove(tract, ","),
+                      county = word(NAME, 4)) %>%
+               select(-NAME) %>%
+               rename("medianIncome" = "B06011_001E", 
+                      "aggregateIncome" = "B19313_001E", 
+                      "bachelors25to64" = "B23006_023E",
+                      "total25to64" = "B23006_001E", 
+                      "medYrStructureBuilt" = "B25035_001E", 
+                      "totalStructure" = "B25034_001E", 
+                      "builtSince2005" = "B25034_002E", 
+                      "built2000to2004" = "B25034_003E", 
+                      "built1990to1999" = "B25034_004E", 
+                      "built1980to1989" = "B25034_005E", 
+                      "built1970to1979" = "B25034_006E", 
+                      "built1960to1969" = "B25034_007E", 
+                      "built1950to1959" = "B25034_008E", 
+                      "built1940to1949" = "B25034_009E", 
+                      "builtPre1940" = "B25034_010E", 
+                      "medContractRent" = "B25058_001E", 
+                      "medGrossRent" = "B25064_001E", 
+                      "medIncMoe" = "B06011_001M", 
+                      "aggIncMoe" = "B19313_001M", 
+                      "bachelors25to64Moe" = "B23006_023M",
+                      "total25to64Moe" = "B23006_001M", 
+                      "medYrStructureBuiltMoe" = "B25035_001M", 
+                      "totalStructureMoe" = "B25034_001M", 
+                      "builtSince2005Moe" = "B25034_002M", 
+                      "built2000to2004Moe" = "B25034_003M", 
+                      "built1990to1999Moe" = "B25034_004M", 
+                      "built1980to1989Moe" = "B25034_005M", 
+                      "built1970to1979Moe" = "B25034_006M", 
+                      "built1960to1969Moe" = "B25034_007M", 
+                      "built1950to1959Moe" = "B25034_008M", 
+                      "built1940to1949Moe" = "B25034_009M", 
+                      "builtPre1940Moe" = "B25034_010M", 
+                      "medContractRentMoe" = "B25058_001M", 
+                      "medGrossRentMoe" = "B25064_001M", 
+                      "medianHomeValue" = "B25107_001E", 
+                      "medianHomeValueMoe" = "B25107_001M")
+```
+
+Write ACS and decennial files to Data folder.
+```{r, eval=FALSE}
+save(acs2010, file = 'Data/acs2010.RData')
+save(dicennial2010, file = "Data/dicennial2010.RData")
+save(acs2015, file = "Data/acs2015.RData")
+save(acs2020, file = "Data/acs2020.RData")
+```
+
+
+
+

@@ -1,0 +1,48 @@
+---
+title: "Crime Data Cleaning"
+author: "Erin Franke"
+date: "2022-09-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Minneapolis crime data 
+
+I want to aggregate these points by census tract based on latitude and longitude and plot them using the final census tracts from the previous file (which doesn't yet have geometries so for now say on the original 2010 map).
+```{r}
+minneapolisCrime2022 <- read_csv("Data/Crime/Police_Incidents_2022.csv")
+load("Data/acs2010.RData")
+```
+
+
+
+## Cleaning saint paul crime data 
+```{r}
+saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report.csv")
+intersections <- saintpaulcrime %>%
+  select(BLOCK) %>%
+  filter(str_detect(BLOCK, "&")) %>%
+  count(BLOCK) %>%
+  select(-n)
+streets <- as.data.frame(str_split_fixed(intersections$BLOCK, ' & ', 2)) %>%
+  mutate(street1 = str_trim(V1, side = c("right"))) %>%
+  rename("street2" = "V2") %>%
+  select(street1, street2)
+write_csv(streets, "Data/Crime/intersections.csv")
+
+
+data_sf <- minneapolisCrime2022 %>% st_as_sf()
+random_long_lat_sf <- random_long_lat %>% 
+  st_as_sf(coords = c("long", "lat"), crs = 4326)
+
+data_sf_summary <- data_sf %>% 
+  mutate(counts = lengths(st_intersects(., random_long_lat_sf)))
+```
+
+```{r}
+st_as_sf(minneapolisCrime2022, coords = c("centerLong", "centerLat"), remove = FALSE, 
+    crs = 4326, agr = "constant")
+```
