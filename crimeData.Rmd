@@ -11,10 +11,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Minneapolis crime data 
 
-I want to aggregate these points by census tract based on latitude and longitude and plot them using the final census tracts from the previous file (which doesn't yet have geometries so for now say on the original 2010 map).
+I want to aggregate these points by census tract based on latitude and longitude and plot them using the final census tracts from the previous file (which doesn't yet have geometries so for now say on the original genrifiable data).
 ```{r}
 minneapolisCrime2022 <- read_csv("Data/Crime/Police_Incidents_2022.csv")
-load("Data/acs2010.RData")
+load("Data/genrifiable.RData")
 ```
 
 
