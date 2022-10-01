@@ -9,17 +9,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Minneapolis crime data 
+## Minneapolis crime data
 
 I want to aggregate these points by census tract based on latitude and longitude and plot them using the final census tracts from the previous file (which doesn't yet have geometries so for now say on the original genrifiable data).
+
 ```{r}
 minneapolisCrime2022 <- read_csv("Data/Crime/Police_Incidents_2022.csv")
 load("Data/genrifiable.RData")
 ```
 
+## Cleaning saint paul crime data
 
-
-## Cleaning saint paul crime data 
 ```{r}
 saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report.csv")
 intersections <- saintpaulcrime %>%
@@ -27,22 +27,52 @@ intersections <- saintpaulcrime %>%
   filter(str_detect(BLOCK, "&")) %>%
   count(BLOCK) %>%
   select(-n)
-streets <- as.data.frame(str_split_fixed(intersections$BLOCK, ' & ', 2)) %>%
-  mutate(street1 = str_trim(V1, side = c("right"))) %>%
-  rename("street2" = "V2") %>%
-  select(street1, street2)
-write_csv(streets, "Data/Crime/intersections.csv")
 
-
-data_sf <- minneapolisCrime2022 %>% st_as_sf()
-random_long_lat_sf <- random_long_lat %>% 
-  st_as_sf(coords = c("long", "lat"), crs = 4326)
-
-data_sf_summary <- data_sf %>% 
-  mutate(counts = lengths(st_intersects(., random_long_lat_sf)))
+streets <- as.data.frame(str_split_fixed(intersections$BLOCK, ' & ', 2))
+street_identifiers <- as.data.frame(str_split_fixed(streets$V1, " ", 2)) %>%
+  rename("street" = "V1", 
+         "identifier" = "V2")
+  
+intersections_RamseyCo <- as.data.frame(str_split_fixed(intersections$BLOCK, ' & ', 2)) %>%
+  left_join(street_identifiers, by = c("V2" = "street")) %>%
+  mutate(V2 = paste(V2, identifier, sep= " ")) %>%
+  select(-identifier) %>%
+  rename("street1" = "V1", 
+         "street2" = "V2") %>%
+  mutate(street1 = str_trim(street1, side = c("right")), 
+         street2 = str_trim(street2, side = "right")) %>%
+  distinct_all() %>%
+  mutate(combined = paste(street1, street2, sep = " & ")) %>%
+  select(combined)
+  
+write_csv(intersections_RamseyCo, "Data/Crime/intersections_RamseyCo.csv")
 ```
 
 ```{r}
-st_as_sf(minneapolisCrime2022, coords = c("centerLong", "centerLat"), remove = FALSE, 
-    crs = 4326, agr = "constant")
+minn_sf <- minneapolisCrime2022 %>% 
+  filter(X < 0) %>%
+  st_as_sf(coords = c("X", "Y"), crs = "NAD83") %>%
+  select(offense)
+
+tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tract"]) # join points
+plot(tract_points$geometry, pch=21, cex=0.7, col="purple", bg="gray80")
+plot(gent_clean$geometry, border="gray20", col=NA, add=T)
+
+crimes_per_tract <- tract_points %>%
+  group_by(tract) %>%
+  count()
+
+tract_aggregated <- st_join(gent_clean, crimes_per_tract, left = FALSE) %>%
+  select(-tract.y) %>%
+  rename("tract" = "tract.x") %>%
+  st_join(gentrifiable %>%
+              select(tract, TotalPopRace)) %>%
+  mutate(crimes_per_1000 = (n/TotalPopRace) * 1000) %>%
+  select(-tract.y) %>%
+  rename("tract" = "tract.x")
+
+ggplot() +
+  geom_sf(data=gent_clean) +
+  geom_sf(data=tract_aggregated, aes(fill=crimes_per_1000), lwd=0.4, alpha=0.4)+
+  theme_bw()
 ```

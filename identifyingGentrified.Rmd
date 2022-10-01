@@ -252,40 +252,38 @@ final %>%
          avg_change_bachelors = mean(avg_propbachelors2020 - avg_propbachelors2010, na.rm = TRUE), )
 ```
 
-Create a final gentrified data set. First, deal with the weird 2010 tracts by creating `gentrifiable_groups`.
+Second, create a final `gentrified` dataset that lists whether each or not each census tract was gentrifiable and if it did gentrify according to Ding and Freeman's methods.
 ```{r}
-gentrifiable_groups <- gentrifiable %>%
-  st_drop_geometry() %>%
-  filter(tract %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03)) %>%
-  mutate(grouped = case_when(tract %in% c(249.01, 249.02) ~ 249.04, 
-                             tract %in% c(1023.00, 1029.00) ~ 1263.00,
-                             TRUE ~ 408.04), 
-         canGent = as.numeric(canGent)-1) %>%
-  group_by(grouped) %>%
-  summarize(canGent = as.factor(mean(canGent))) %>%
-  rename("tract" = "grouped") %>%
-  mutate(county = c("Hennepin", "Ramsey", "Hennepin"))
-```
-
-Create final `gentrifiable_clean` dataset, which is the same as the original `gentrifiable` but just includes the manipulated tracts.
-```{r}
-gentrifiable_clean <- gentrifiable %>%
-  filter(!(tract %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03))) %>%
-  bind_rows(gentrifiable_groups) %>%
-  st_drop_geometry() %>%
-  rename("tractmod" = "tract")
-```  
-
-Final dataset which lists whether each or not each census tract was gentrifiable and if it did gentrify according to Ding and Freeman's methods.
-```{r}
-gentrified <- final %>%
-  group_by(tractmod) %>%
+gent_clean <- gentrifiable %>%
+  mutate(group = case_when(tract %in% c(249.01, 249.02) ~ "a", 
+                           tract %in% c(1023.00, 1029.00) ~ "b",
+                           tract %in% c(408.02, 408.03) ~ "c", 
+                           TRUE ~ as.character(tract))) %>%
+  group_by(group) %>% 
+  mutate(geometry = st_union(geometry)) %>% #need to fix tract names (make 249.01 and 249.02 be 249.04)
+  
+  select(tract, county, canGent) %>%
+  mutate(tract = case_when(tract %in% c(249.01, 249.02) ~ 249.04, 
+                           tract %in% c(1023.00, 1029.00) ~ 1263.00, 
+                           tract %in% c(408.02, 408.03) ~ 408.04, 
+                           TRUE ~ tract)) %>%
+  distinct_all() %>%
+  left_join(final, by = c("tract" = "tractmod")) %>% 
+  group_by(tract, county, canGent) %>%
+  summarize(bachelors25to64_2010 = mean(bachelors25to64_2010), 
+            total25to64_2010 = mean(total25to64_2010), 
+            bachelors25to64_2020 = mean(bachelors25to64_2020), 
+            total25to64_2020 = mean(total25to64_2020), 
+            medianHomeValue_2020 = mean(medianHomeValue_2020), 
+            medianHomeValue_2010 = mean(medianHomeValue_2010), 
+            medContractRent_2020 = mean(medContractRent_2020), 
+            medContractRent_2010 = mean(medContractRent_2010)) %>%
+  group_by(tract, canGent, county) %>%
   summarize(propbachelors2010 = bachelors25to64_2010/total25to64_2010, 
          propbachelors2020 = bachelors25to64_2020/total25to64_2020, 
          change_bachelors = propbachelors2020 - propbachelors2010,
          home_value_increase = medianHomeValue_2020 - medianHomeValue_2010,
          percent_rent_increase = (medContractRent_2020 - medContractRent_2010)/(medContractRent_2010)) %>%
-  left_join(gentrifiable_clean %>% select(tractmod, canGent, county), by = "tractmod") %>%
   mutate(freeman = as.factor(case_when(canGent == "1" & change_bachelors > 0.06020412 & home_value_increase > 0 ~ 1, TRUE ~ 0)), 
          ding = as.factor(case_when((canGent == "1" & county == "Hennepin" & change_bachelors > 0.06762064 & 
                                        (percent_rent_increase > 0.3581635 | percent_rent_increase > 37945.32)) |
@@ -294,9 +292,9 @@ gentrified <- final %>%
                           TRUE ~ 0)))
 ```
 
-Understand what proportion of tracts that could gentrify did. Out of the 226 tracts, Freeman and Ding agreed that 129 did not gentrify and 44 did. Freeman's methods yielded 45 gentrifying that Ding did not, while Ding's methods identified 8 gentrifying the Freeman did not.
+Understand what proportion of tracts that could gentrify did. Out of the 216 tracts, Freeman and Ding agreed that 122 did not gentrify and 43 did. Freeman's methods yielded 44 gentrifying that Ding did not, while Ding's methods identified 7 gentrifying the Freeman did not.
 ```{r}
-gentrified %>%
+gent_clean %>%
   filter(canGent == "1") %>%
   ungroup()%>%
   count(freeman, ding)
