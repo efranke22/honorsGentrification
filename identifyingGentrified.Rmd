@@ -173,7 +173,8 @@ acs2010groups <- acs2010 %>%
                              TRUE ~ 408.04), 
          population = c(1032, 2383, 1347, 1148, 1778, 4774)) %>%
   group_by(grouped) %>%
-  summarize(medianIncome_2010 = weighted.mean(medianIncome_2010, population),
+  summarize(population_2010 = sum(population_2010),
+            medianIncome_2010 = weighted.mean(medianIncome_2010, population),
             aggregateIncome_2010 = weighted.mean(aggregateIncome_2010, population),
             total25to64_2010 = weighted.mean(total25to64_2010, population),
             bachelors25to64_2010 = weighted.mean(bachelors25to64_2010, population),
@@ -261,7 +262,6 @@ gent_clean <- gentrifiable %>%
                            TRUE ~ as.character(tract))) %>%
   group_by(group) %>% 
   mutate(geometry = st_union(geometry)) %>% #need to fix tract names (make 249.01 and 249.02 be 249.04)
-  
   select(tract, county, canGent) %>%
   mutate(tract = case_when(tract %in% c(249.01, 249.02) ~ 249.04, 
                            tract %in% c(1023.00, 1029.00) ~ 1263.00, 
@@ -270,7 +270,8 @@ gent_clean <- gentrifiable %>%
   distinct_all() %>%
   left_join(final, by = c("tract" = "tractmod")) %>% 
   group_by(tract, county, canGent) %>%
-  summarize(bachelors25to64_2010 = mean(bachelors25to64_2010), 
+  summarize(population_2010 = sum(population_2010),
+            bachelors25to64_2010 = mean(bachelors25to64_2010), 
             total25to64_2010 = mean(total25to64_2010), 
             bachelors25to64_2020 = mean(bachelors25to64_2020), 
             total25to64_2020 = mean(total25to64_2020), 
@@ -278,7 +279,7 @@ gent_clean <- gentrifiable %>%
             medianHomeValue_2010 = mean(medianHomeValue_2010), 
             medContractRent_2020 = mean(medContractRent_2020), 
             medContractRent_2010 = mean(medContractRent_2010)) %>%
-  group_by(tract, canGent, county) %>%
+  group_by(tract, canGent, county, population_2010) %>%
   summarize(propbachelors2010 = bachelors25to64_2010/total25to64_2010, 
          propbachelors2020 = bachelors25to64_2020/total25to64_2020, 
          change_bachelors = propbachelors2020 - propbachelors2010,
@@ -291,6 +292,11 @@ gent_clean <- gentrifiable %>%
                                          (percent_rent_increase > 0.3749619| percent_rent_increase > 18120.00)) ~ 1, 
                           TRUE ~ 0)))
 ```
+
+```{r, eval=FALSE}
+save(gent_clean, file = 'Data/gent_clean.RData')
+```
+
 
 Understand what proportion of tracts that could gentrify did. Out of the 216 tracts, Freeman and Ding agreed that 122 did not gentrify and 43 did. Freeman's methods yielded 44 gentrifying that Ding did not, while Ding's methods identified 7 gentrifying the Freeman did not.
 ```{r}

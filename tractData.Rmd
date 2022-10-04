@@ -66,13 +66,15 @@ dicennial2010 <- get_decennial(year = 2010, state = "MN", geography = "tract", v
 # View variables from 2006 - 2010 ACS (for additional income/education information)
 acsvariables2010 <- load_variables(year = 2010, dataset = "acs5") 
 # Select variables of interest from 2010 ACS
-acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c("B06011_001", "B19313_001", "B23006_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001"), output = 'wide') %>%
+acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c(	
+"B01003_001", "B06011_001", "B19313_001", "B23006_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001"), output = 'wide') %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey", "Anoka", "Carver", "Dakota", "Scott", "Washington"))%>%
                mutate(tract = word(NAME, 3),
                       tract = str_remove(tract, ","),
                       county = word(NAME, 4)) %>%
                select(-NAME) %>%
-               rename("medianIncome" = "B06011_001E", 
+               rename("population" = "B01003_001E", 
+                      "medianIncome" = "B06011_001E", 
                       "aggregateIncome" = "B19313_001E", 
                       "bachelors25to64" = "B23006_023E",
                       "total25to64" = "B23006_001E", 
@@ -88,7 +90,8 @@ acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c
                       "built1940to1949" = "B25034_009E", 
                       "builtPre1940" = "B25034_010E", 
                       "medContractRent" = "B25058_001E", 
-                      "medGrossRent" = "B25064_001E", 
+                      "medGrossRent" = "B25064_001E",
+                      "populationMoe" = "B01003_001M",
                       "medIncMoe" = "B06011_001M", 
                       "aggIncMoe" = "B19313_001M", 
                       "bachelors25to64Moe" = "B23006_023M",

@@ -1,0 +1,20 @@
+---
+title: "Crime Modeling"
+author: "Erin Franke"
+date: "2022-10-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+load("Data/tract_aggregated_2022.RData")
+```
+
+```{r}
+tract_aggregated_2022 <- tract_aggregated_2022 %>% mutate(crimes_per_1000 = round(crimes_per_1000, 0))
+glm(crimes_per_1000 ~ ding, data = tract_aggregated_2022, family = "poisson")
+```
+

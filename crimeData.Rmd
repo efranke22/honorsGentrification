@@ -11,17 +11,73 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Minneapolis crime data
 
-I want to aggregate these points by census tract based on latitude and longitude and plot them using the final census tracts from the previous file (which doesn't yet have geometries so for now say on the original genrifiable data).
+I want to aggregate these points by census tract based on latitude and longitude and plot them using the final census tracts from the cleaned gentrified file. 
 
 ```{r}
 minneapolisCrime2022 <- read_csv("Data/Crime/Police_Incidents_2022.csv")
-load("Data/genrifiable.RData")
+saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report.csv")
+load('Data/gent_clean.RData')
+library(NatParksPalettes)
+library(PrettyCols)
+library(ggmap)
+```
+
+Make the crime coordinates sf geometry points of the right coordinate system.
+```{r}
+minn_sf <- minneapolisCrime2022 %>% 
+  filter(X < 0) %>%
+  st_as_sf(coords = c("X", "Y"), crs = "NAD83") %>%
+  select(offense)
+```
+
+Aggregate the points by census tract. 
+```{r}
+tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tract"]) 
+plot(tract_points$geometry, pch=21, cex=0.7, col="purple", bg="gray80")
+plot(gent_clean$geometry, border="gray20", col=NA, add=T)
+
+crimes_per_tract <- tract_points %>%
+  group_by(tract) %>%
+  count()
+
+tract_aggregated_2022 <- st_join(gent_clean, crimes_per_tract, left = FALSE) %>%
+  select(-tract.y) %>%
+  rename("tract" = "tract.x") %>%
+  mutate(crimes_per_1000 = (n/population_2010) * 1000, 
+         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=23 ~ "0-23", 
+                                      crimes_per_1000 >23 & crimes_per_1000 <= 37 ~ "24-37", 
+                                      crimes_per_1000 > 37 & crimes_per_1000 <= 50 ~ "38-50", 
+                                      crimes_per_1000 >50 & crimes_per_1000 <= 70 ~ "51-70", 
+                                      TRUE ~ "71+")), 
+         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-23", "24-37", "38-50", "51-70", "71+")))
+```
+
+```{r,eval=FALSE}
+save(tract_aggregated_2022, file = 'Data/tract_aggregated_2022.RData')
+```
+
+Create map of crimes per 1000 people. 
+```{r}
+ggplot() +
+  geom_sf(data=tract_aggregated_2022, aes(fill=crimes_per_1000d), lwd=0.4, alpha =0.8)+
+  theme_classic()+
+  scale_fill_natparks_d(name = "Olympic")+
+  labs(title = "Crimes per 1000 people by Minneapolis census tract 2022", fill = "")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size = 9), 
+        axis.line = element_blank(), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank())
 ```
 
 ## Cleaning saint paul crime data
 
+Unlike the Minneapolis crime data, the Saint Paul data did not come with a latitude and longitude location of each crime. However, it did come with a rough block address or street intersection. Using GIS Pro we were able to get a rough latitude and longitude of each crime and then follow the same process as the Minneapolis data.
+
+### Preparing the data for GIS 
+
+First, identify crimes that occurred at intersections. These will need to be treated differently than those with addresses. Use string techniques to put them in a format that GIS likes. 
 ```{r}
-saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report.csv")
 intersections <- saintpaulcrime %>%
   select(BLOCK) %>%
   filter(str_detect(BLOCK, "&")) %>%
@@ -30,6 +86,7 @@ intersections <- saintpaulcrime %>%
 
 streets <- as.data.frame(str_split_fixed(intersections$BLOCK, ' & ', 2))
 street_identifiers <- as.data.frame(str_split_fixed(streets$V1, " ", 2)) %>%
+  #mutate(V2 = word(V2, 1)) %>% trying this out
   rename("street" = "V1", 
          "identifier" = "V2")
   
@@ -44,35 +101,60 @@ intersections_RamseyCo <- as.data.frame(str_split_fixed(intersections$BLOCK, ' &
   distinct_all() %>%
   mutate(combined = paste(street1, street2, sep = " & ")) %>%
   select(combined)
-  
+```
+
+```{r, eval=FALSE}
 write_csv(intersections_RamseyCo, "Data/Crime/intersections_RamseyCo.csv")
 ```
 
+### Cleaning up GIS data 
+
+Import data and select rough intersection and coordinates.
 ```{r}
-minn_sf <- minneapolisCrime2022 %>% 
-  filter(X < 0) %>%
-  st_as_sf(coords = c("X", "Y"), crs = "NAD83") %>%
-  select(offense)
-
-tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tract"]) # join points
-plot(tract_points$geometry, pch=21, cex=0.7, col="purple", bg="gray80")
-plot(gent_clean$geometry, border="gray20", col=NA, add=T)
-
-crimes_per_tract <- tract_points %>%
-  group_by(tract) %>%
-  count()
-
-tract_aggregated <- st_join(gent_clean, crimes_per_tract, left = FALSE) %>%
-  select(-tract.y) %>%
-  rename("tract" = "tract.x") %>%
-  st_join(gentrifiable %>%
-              select(tract, TotalPopRace)) %>%
-  mutate(crimes_per_1000 = (n/TotalPopRace) * 1000) %>%
-  select(-tract.y) %>%
-  rename("tract" = "tract.x")
-
-ggplot() +
-  geom_sf(data=gent_clean) +
-  geom_sf(data=tract_aggregated, aes(fill=crimes_per_1000), lwd=0.4, alpha=0.4)+
-  theme_bw()
+intersections_ll <- read_csv("Data/Crime/intersections_RamseyCo_points.csv")
+matched_lat_lngs <- intersections_ll %>%
+  filter(Score > 0) %>%
+  select(USER_combined, X, Y)
 ```
+
+Create same intersection descriptions and make column `original` so we are able to join back to original data and get crime date and type. 
+```{r}
+all_intersections <- saintpaulcrime %>%
+  filter(str_detect(BLOCK, "&")) %>%
+  select(DATE, INCIDENT, BLOCK)
+
+streets <- as.data.frame(str_split_fixed(all_intersections$BLOCK, ' & ', 2)) %>%
+streets2 <- bind_cols(streets, all_intersections)
+street_identifiers <- as.data.frame(str_split_fixed(streets2$V1, " ", 2)) %>%
+  rename("street" = "V1", 
+         "identifier" = "V2")
+  
+intersections_clean <- streets2 %>%
+  left_join(street_identifiers, by = c("V2" = "street")) %>%
+  distinct() %>%
+  mutate(V2 = paste(V2, identifier, sep= " ")) %>%
+  select(-identifier) %>%
+  rename("street1" = "V1", 
+         "street2" = "V2") %>%
+  mutate(street1 = str_trim(street1, side = c("right")), 
+         street2 = str_trim(street2, side = "right")) %>%
+  mutate(combined = paste(street1, street2, sep = " & ")) 
+```
+
+```{r}
+intersections_clean %>%
+  left_join(matched_lat_lngs, by = c("combined" = "USER_combined")) %>%
+  distinct(DATE, X, Y, INCIDENT)
+```
+
+### Estimating addresses when given the block
+
+```{r}
+saintpaulcrime %>%
+  filter(!str_detect(BLOCK, "&")) %>%
+  select(DATE, INCIDENT, BLOCK) %>%
+  mutate(BLOCK = str_replace(BLOCK, "X", "0")) %>%
+  head(100) %>%
+  tidygeocoder::geocode(BLOCK, method = 'osm', lat = latitude , long = longitude)
+```
+
