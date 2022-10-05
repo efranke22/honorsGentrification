@@ -13,8 +13,22 @@ knitr::opts_chunk$set(echo = TRUE)
 load("Data/tract_aggregated_2022.RData")
 ```
 
+Start with difference between 2019 and 2022. \
+Check paper for rate or raw number \
+See their main predictor of interest and if they other controls \
+
+
 ```{r}
 tract_aggregated_2022 <- tract_aggregated_2022 %>% mutate(crimes_per_1000 = round(crimes_per_1000, 0))
+tracts_canGent <- tract_aggregated_2022 %>% filter(canGent == "1")
+
 glm(crimes_per_1000 ~ ding, data = tract_aggregated_2022, family = "poisson")
+glm(n ~ ding + population_2010, data = tract_aggregated_2022, family = "poisson")
+
+mod1 = glm(crimes_per_1000 ~ ding, data = tracts_canGent, family = "poisson")
+mod2 = glm(n ~ ding + population_2010, data = tracts_canGent, family = "poisson")
+
+summary(mod1)
+summary(mod2)
 ```
 

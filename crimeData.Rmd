@@ -155,6 +155,6 @@ saintpaulcrime %>%
   select(DATE, INCIDENT, BLOCK) %>%
   mutate(BLOCK = str_replace(BLOCK, "X", "0")) %>%
   head(100) %>%
-  tidygeocoder::geocode(BLOCK, method = 'osm', lat = latitude , long = longitude)
+  tidygeocoder::geocode(BLOCK, method = 'osm', lat = latitude, long = longitude)
 ```
 
