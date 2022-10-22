@@ -237,7 +237,7 @@ write_csv(intersections_RamseyCo, "Data/Crime/intersections_RamseyCo.csv")
 
 Import data and select rough intersection and coordinates.
 ```{r}
-intersections_ll <- read_csv("Data/Crime/intersections_RamseyCo_points.csv")
+intersections_ll <- read_csv("Data/Crime/intersections_RamseyCo_geocoded2.csv")
 matched_lat_lngs <- intersections_ll %>%
   filter(Score > 0) %>%
   select(USER_combined, X, Y)
@@ -249,9 +249,10 @@ all_intersections <- saintpaulcrime %>%
   filter(str_detect(BLOCK, "&")) %>%
   select(DATE, INCIDENT, BLOCK)
 
-streets <- as.data.frame(str_split_fixed(all_intersections$BLOCK, ' & ', 2)) %>%
+streets <- as.data.frame(str_split_fixed(all_intersections$BLOCK, ' & ', 2)) 
 streets2 <- bind_cols(streets, all_intersections)
 street_identifiers <- as.data.frame(str_split_fixed(streets2$V1, " ", 2)) %>%
+  mutate(V2 = word(V2, 1)) %>% 
   rename("street" = "V1", 
          "identifier" = "V2")
   
@@ -270,7 +271,8 @@ intersections_clean <- streets2 %>%
 ```{r}
 intersections_clean %>%
   left_join(matched_lat_lngs, by = c("combined" = "USER_combined")) %>%
-  distinct(DATE, X, Y, INCIDENT)
+  distinct(DATE, X, Y, INCIDENT) %>%
+  na.omit()
 ```
 
 ### Estimating addresses when given the block
@@ -293,7 +295,7 @@ do_one_sim_three <- function(i){
   # implement GWAS
   for(i in 1:32562){
     address_lat_long$address[i] <- blocks$BLOCK
-    address_lat_lpng$latitude[i] <- tidygeocoder::geocode(blocks$BLOCK %>% as.data.frame(), method = 'osm', lat = latitude, long = longitude)$latitude
+    address_lat_long$latitude[i] <- tidygeocoder::geocode(blocks$BLOCK %>% as.data.frame(), method = 'osm', lat = latitude, long = longitude)$latitude
     address_lat_lpng$longitude[i] <- tidygeocoder::geocode(blocks$BLOCK %>% as.data.frame(), method = 'osm', lat = latitude, long = longitude)$longitude
   }
 }
