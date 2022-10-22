@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 This is the 4th file in my data cleaning and exploration process. \
-Steps in this file: Download and crime Minneapolis and Saint Paul crime data.  \
+Steps in this file: Download and clean Minneapolis and Saint Paul crime data.  \
 
 ## Data and library loading
 
@@ -92,6 +92,14 @@ minneapolisCrime <- bind_rows(minneapolisCrime2010, minneapolisCrime2011, minnea
          date = as.Date.character(ReportedDate, format = "%Y/%m/%d"))
 ```
 
+```{r, eval=FALSE}
+save(minneapolisCrime, file = "Data/Crime/minneapolisCrime.RData")
+```
+
+```{r}
+load("Data/Crime/minneapolisCrime.RData")
+```
+
 I want to aggregate these points by census tract based on latitude and longitude and plot them using the final census tracts from the cleaned gentrified file. 
 
 Make the crime coordinates sf geometry points of the right coordinate system.
@@ -120,7 +128,9 @@ tract_aggregated <- st_join(gent_clean, crimes_per_tract, left = FALSE) %>%
                                       crimes_per_1000 > 36 & crimes_per_1000 <= 52 ~ "37-52", 
                                       crimes_per_1000 >52 & crimes_per_1000 <= 75 ~ "53-75", 
                                       TRUE ~ "75+")), 
-         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-23", "24-36", "37-52", "53-75", "75+")))
+         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-23", "24-36", "37-52", "53-75", "75+"))) %>%
+  filter(!(tract == 1055 & year == 2012 & n ==150), 
+         !(tract == 1066 & year == 2012 & n ==181))
 ```
 
 Join crime data with `gent_clean` file.
@@ -137,6 +147,54 @@ tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tract"]) %>%
 save(tract_aggregated, file = 'Data/tract_aggregated.RData')
 save(tract_points, file = "Data/tract_points.RData")
 ```
+
+Specifically look at violent crimes
+
+```{r}
+crimes_per_tract_violent <- tract_points %>%
+  mutate(offense_group = case_when(Offense %in% c("THEFT", "BIKETF", "TFPER", "THFTSW", "PKGTHEFT") ~ "Theft", 
+                                   Offense %in% c("TFMV", "AUTOTH", "TMVP", "CARJCK", "MVTHFT") ~ "Auto Theft",
+                                   Offense == "BURGD" ~ "Home Burglary", 
+                                   Offense %in% c("BURGB", "ROBBIZ", "TBLDG") ~ "Business Burglary", 
+                                   Offense %in% c("ASLT2", "CSCR", "DASTR", "DASLT2", "ASLT3", "ASLT4", "DASLT3", "MURDR", "ASLT1", "DASLT1") ~ "Assault", 
+                                   TRUE ~ "Other")) %>%
+  filter(offense_group == "Assault") %>%
+  group_by(tract, year) %>%
+  count()
+
+tract_aggregated_violent <- st_join(gent_clean, crimes_per_tract_violent, left = FALSE) %>%
+  select(-tract.y) %>%
+  rename("tract" = "tract.x") %>%
+  mutate(crimes_per_1000 = (n/population_2010) * 1000)
+```
+
+Specifically look at thefts
+
+```{r}
+crimes_per_tract_theft <- tract_points %>%
+  mutate(offense_group = case_when(Offense %in% c("THEFT", "BIKETF", "TFPER", "THFTSW", "PKGTHEFT") ~ "Theft", 
+                                   Offense %in% c("TFMV", "AUTOTH", "TMVP", "CARJCK", "MVTHFT") ~ "Auto Theft",
+                                   Offense == "BURGD" ~ "Home Burglary", 
+                                   Offense %in% c("BURGB", "ROBBIZ", "TBLDG") ~ "Business Burglary", 
+                                   Offense %in% c("ASLT2", "CSCR", "DASTR", "DASLT2", "ASLT3", "ASLT4", "DASLT3", "MURDR", "ASLT1", "DASLT1") ~ "Assault", 
+                                   TRUE ~ "Other")) %>%
+  filter(offense_group %in% c("Theft", "Auto Theft")) %>%
+  group_by(tract, year) %>%
+  count()
+
+tract_aggregated_theft <- st_join(gent_clean, crimes_per_tract_theft, left = FALSE) %>%
+  select(-tract.y) %>%
+  rename("tract" = "tract.x") %>%
+  mutate(crimes_per_1000 = (n/population_2010) * 1000) %>%
+  filter(!(tract == 1055 & year == 2012 & n ==104), 
+         !(tract == 1066 & year == 2012 & n ==110))
+```
+
+```{r, eval=FALSE}
+save(tract_aggregated_violent, file = "Data/Crime/tract_aggregated_violent.RData")
+save(tract_aggregated_theft, file = "Data/Crime/tract_aggregated_theft.RData")
+```
+
 
 ## Cleaning saint paul crime data
 
@@ -218,11 +276,28 @@ intersections_clean %>%
 ### Estimating addresses when given the block
 
 ```{r}
-saintpaulcrime %>%
+blocks <- saintpaulcrime %>%
   filter(!str_detect(BLOCK, "&")) %>%
   select(DATE, INCIDENT, BLOCK) %>%
   mutate(BLOCK = str_replace(BLOCK, "X", "0")) %>%
-  head(100) %>%
   tidygeocoder::geocode(BLOCK, method = 'osm', lat = latitude, long = longitude)
+
+do_one_sim_three <- function(i){
+  # simulate null trait
+  blocks <- saintpaulcrime %>%
+  filter(!str_detect(BLOCK, "&")) %>%
+  select(DATE, INCIDENT, BLOCK) %>%
+  mutate(BLOCK = str_replace(BLOCK, "X", "0")) %>%
+  distinct(BLOCK)
+  address_lat_long = data.frame(address = c(), lat = c(), long = c())
+  # implement GWAS
+  for(i in 1:32562){
+    address_lat_long$address[i] <- blocks$BLOCK
+    address_lat_lpng$latitude[i] <- tidygeocoder::geocode(blocks$BLOCK %>% as.data.frame(), method = 'osm', lat = latitude, long = longitude)$latitude
+    address_lat_lpng$longitude[i] <- tidygeocoder::geocode(blocks$BLOCK %>% as.data.frame(), method = 'osm', lat = latitude, long = longitude)$longitude
+  }
+}
+
+mclapply(1, do_one_sim_three, mc.cores = 4)
 ```
 

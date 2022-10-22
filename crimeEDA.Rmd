@@ -71,6 +71,7 @@ tract_points %>%
         axis.title.x = element_text(family = "mono"))
 ```
 
+
 Create groups of offenses and plot trends over years. \
 - Theft: THEFT, BIKETF, TFPER, THFTSW, PKGTHEFT \
 - Autotheft: TFMV, AUTOTH, TMVP, CARJCK, MVTHFT \
@@ -121,6 +122,35 @@ tract_points %>%
                               TRUE ~ "Not gentrifiable")) %>%
   mutate(crimes_per_1000 = case_when(canGent == "1" & freeman == "1" ~ totalCrimes/(46*3175)*1000, 
                                      canGent == "1" & freeman == "0" ~ totalCrimes/(41*4032)*1000,
+                                     TRUE ~ totalCrimes/(43*3635)*1000)) %>%
+  ggplot(aes(x=year, y=crimes_per_1000, color = gent_cat))+
+  geom_point()+
+  geom_line()+
+  theme_classic()+
+  labs(x="Year", y= "Annual crimes/1000 people", title = "Crime patterns by census tract gentrification category", color = "Tract category")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size =10), 
+        axis.title.x = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono"), 
+        axis.title.y = element_text(family = "mono"))+
+  scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018, 2020, 2022))+
+  scale_color_natparks_d(name = "SmokyMtns")
+
+tract_aggregated %>%
+  distinct(tract, canGent, population_2010, ding) %>%
+  ungroup() %>%
+  group_by(canGent, ding) %>%
+  summarize(numtract = n(), avg_pop = mean(population_2010))
+
+tract_points %>%
+  count(tract, canGent, ding, year) %>%
+  group_by(year, canGent, ding) %>%
+  summarize(totalCrimes = sum(n)) %>%
+  mutate(gent_cat = case_when(ding == "1" & canGent == "1" ~ "Gentrified", 
+                              ding == "0" & canGent == "1" ~ "Did not gentrify", 
+                              TRUE ~ "Not gentrifiable")) %>%
+  mutate(crimes_per_1000 = case_when(canGent == "1" & ding == "1" ~ totalCrimes/(27*3068)*1000, 
+                                     canGent == "1" & ding == "0" ~ totalCrimes/(60*3809)*1000,
                                      TRUE ~ totalCrimes/(43*3635)*1000)) %>%
   ggplot(aes(x=year, y=crimes_per_1000, color = gent_cat))+
   geom_point()+

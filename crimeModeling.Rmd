@@ -10,25 +10,93 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-load("Data/tract_aggregated_2022.RData")
+load("Data/tract_aggregated.RData")
+load("Data/Crime/tract_aggregated_violent.RData")
+load("Data/Crime/tract_aggregated_theft.RData")
+library(tidyverse)
+library(sf)
+
+crimes_wide <- tract_aggregated %>%
+  mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tract:ding),names_from = year, values_from = crimes_per_1000) %>%
+  replace(is.na(.), 0) %>%
+  mutate(avg2010to2015 = (`2010` + `2011` + `2012` + `2013` + `2014` + `2015`)/6)
 ```
 
-Start with difference between 2019 and 2022. \
-Check paper for rate or raw number \
-See their main predictor of interest and if they other controls \
-
+Models predicting 2022 crime controlling for 2010-2015 crime rate:
 
 ```{r}
-tract_aggregated_2022 <- tract_aggregated_2022 %>% mutate(crimes_per_1000 = round(crimes_per_1000, 0))
-tracts_canGent <- tract_aggregated_2022 %>% filter(canGent == "1")
-
-glm(crimes_per_1000 ~ ding, data = tract_aggregated_2022, family = "poisson")
-glm(n ~ ding + population_2010, data = tract_aggregated_2022, family = "poisson")
-
-mod1 = glm(crimes_per_1000 ~ ding, data = tracts_canGent, family = "poisson")
-mod2 = glm(n ~ ding + population_2010, data = tracts_canGent, family = "poisson")
-
+mod1 = glm(`2021` ~ ding + canGent + avg2010to2015, data = crimes_wide, family = "poisson")
 summary(mod1)
-summary(mod2)
+
+mod1b = glm(`2021` ~ freeman + canGent + avg2010to2015, data = crimes_wide, family = "poisson")
+summary(mod1b)
 ```
 
+Models predicting 2022 crime controlling for 2010-2015 crime rate and population:
+
+```{r}
+mod2 = glm(`2021` ~ ding + canGent + avg2010to2015 + population_2010, data = crimes_wide, family = "poisson")
+summary(mod2)
+
+mod2b = glm(`2021` ~ freeman + canGent + avg2010to2015 + population_2010, data = crimes_wide, family = "poisson")
+summary(mod2b)
+
+
+#mod3 = glm(`2021` ~ freeman + canGent + avg2010to2015 + population_2010, data = subset(crimes_wide,ding==freeman), family = "poisson")
+#summary(mod3)
+
+#mod3 = glm(`2021` ~ ding + avg2010to2015 + population_2010, data = subset(crimes_wide,canGent==1), family = "poisson")
+#summary(mod3)
+```
+
+Why does an interaction not really work?
+
+```{r}
+mod3 = glm(`2021` ~ ding*canGent + avg2010to2015 + population_2010, data = crimes_wide, family = "poisson")
+summary(mod3)
+
+mod3b = glm(`2021` ~ freeman*canGent + avg2010to2015 + population_2010, data = crimes_wide, family = "poisson")
+summary(mod3b)
+```
+
+Models predicting violent crime:
+
+```{r}
+crimes_wide_violent <- tract_aggregated_violent %>%
+  mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tract:ding),names_from = year, values_from = crimes_per_1000) %>%
+  replace(is.na(.), 0) %>%
+  mutate(avg2010to2015 = (`2010` + `2011` + `2012` + `2013` + `2014` + `2015`)/6)
+
+mod4 = glm(`2021` ~ ding + canGent + avg2010to2015 + population_2010, data = crimes_wide_violent, family = "poisson")
+summary(mod4)
+
+mod4b = glm(`2021` ~ freeman + canGent + avg2010to2015 + population_2010, data = crimes_wide, family = "poisson")
+summary(mod4b)
+```
+
+
+Models predicting non-violent crime:
+
+```{r}
+crimes_wide_theft <- tract_aggregated_theft %>%
+  mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tract:ding),names_from = year, values_from = crimes_per_1000) %>%
+  replace(is.na(.), 0) %>%
+  mutate(avg2010to2015 = (`2010` + `2011` + `2012` + `2013` + `2014` + `2015`)/6)
+
+mod4 = glm(`2021` ~ ding + canGent + avg2010to2015 + population_2010, data = crimes_wide_theft, family = "poisson")
+summary(mod4)
+
+mod4b = glm(`2021` ~ freeman + canGent + avg2010to2015 + population_2010, data = crimes_wide_theft, family = "poisson")
+summary(mod4b)
+```
+
+Create variable that combines canGent and gentried (0, 1, 2) \
+Get a third method for defining gentrification \
+Investigate discrepancies between freeman and ding \
+Spatial modeling! \
