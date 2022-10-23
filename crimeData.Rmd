@@ -203,7 +203,7 @@ Unlike the Minneapolis crime data, the Saint Paul data did not come with a latit
 ### Preparing the data for GIS 
 
 First, identify crimes that occurred at intersections. These will need to be treated differently than those with addresses. Use string techniques to put them in a format that GIS likes. 
-```{r}
+```{r, eval=FALSE}
 intersections <- saintpaulcrime %>%
   select(BLOCK) %>%
   filter(str_detect(BLOCK, "&")) %>%
@@ -269,7 +269,7 @@ intersections_clean <- streets2 %>%
 ```
 
 ```{r}
-intersections_clean %>%
+intersection_crimes <- intersections_clean %>%
   left_join(matched_lat_lngs, by = c("combined" = "USER_combined")) %>%
   distinct(DATE, X, Y, INCIDENT) %>%
   na.omit() %>%
@@ -280,6 +280,8 @@ intersections_clean %>%
 
 ### Estimating addresses when given the block
 
+I used tidygeocoder to get estimated coordinates given the block the crime occurred. The following code chunk took close to 10 hours to run. 
+
 ```{r, eval=FALSE}
 blocks <- saintpaulcrime %>%
   filter(!str_detect(BLOCK, "&")) %>%
@@ -289,11 +291,70 @@ blocks <- saintpaulcrime %>%
 save(blocks, file = "Data/Crime/address_latlngs.RData")
 ```
 
+Load the addresses from above. Some addresses were not able to get coordinates - a large reason for this is because the data combined streets with two names (for example St Clair was STCLAIR). 
 ```{r}
 load("Data/Crime/address_latlngs.RData")
+
+# blocks %>%
+#   filter(is.na(latitude)) %>%
+#   mutate(BLOCK = case_when(str_detect(BLOCK, "OLDHUDSON") == TRUE ~ str_split(BLOCK, "DH"), 
+#                            TRUE ~ BLOCK))
+  
+
 address_clean <- blocks %>%
   select(-BLOCK) %>%
   mutate(year = as.numeric(substr(DATE,1, 4))) %>%
   na.omit()
+```
+
+### Combine intersection and block crimes 
+
+```{r}
+sp_crimes_located <- bind_rows(address_clean, intersection_crimes)
+```
+
+Make the crime coordinates sf geometry points of the right coordinate system.
+```{r}
+sp_sf <- sp_crimes_located %>%
+  filter(latitude >0, longitude<0) %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = "NAD83")
+```
+
+Aggregate the points by census tract. 
+```{r}
+tract_points_sp <- st_join(sp_sf, left = FALSE, gent_clean["tract"]) 
+plot(tract_points_sp$geometry, pch=21, cex=0.7, col="purple", bg="gray80")
+plot(gent_clean$geometry, border="gray20", col=NA, add=T)
+
+crimes_per_tract_sp <- tract_points_sp %>%
+  group_by(tract, year) %>%
+  count()
+
+tract_aggregated_sp <- st_join(gent_clean, crimes_per_tract_sp, left = FALSE) %>%
+  select(-tract.y) %>%
+  rename("tract" = "tract.x") %>%
+  mutate(crimes_per_1000 = (n/population_2010) * 1000, 
+         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=23 ~ "0-23", 
+                                      crimes_per_1000 >23 & crimes_per_1000 <= 36 ~ "24-36", 
+                                      crimes_per_1000 > 36 & crimes_per_1000 <= 52 ~ "37-52", 
+                                      crimes_per_1000 >52 & crimes_per_1000 <= 75 ~ "53-75", 
+                                      TRUE ~ "75+")), 
+         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-23", "24-36", "37-52", "53-75", "75+"))) %>%
+  filter(county == "Ramsey", !(tract %in% c(409.01, 408.01, 405.02, 402, 411.07, 408.03, 408.02, 412, 404.01, 404.02, 413.02, 414, 415, 413.01, 416.01, 424.01, 426.01, 427, 424.02, 425.01)))
+```
+
+Join crime data with `gent_clean` file.
+
+```{r}
+tract_points_sp <- st_join(sp_sf, left = FALSE, gent_clean["tract"]) %>%
+  st_join(gent_clean) %>%
+  select(-tract.y) %>%
+  rename("tract" = "tract.x")
+```
+
+
+```{r,eval=FALSE}
+save(tract_aggregated_sp, file = 'Data/tract_aggregated_sp.RData')
+save(tract_points_sp, file = "Data/tract_points_sp.RData")
 ```
 

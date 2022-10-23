@@ -71,7 +71,6 @@ tract_points %>%
         axis.title.x = element_text(family = "mono"))
 ```
 
-
 Create groups of offenses and plot trends over years. \
 - Theft: THEFT, BIKETF, TFPER, THFTSW, PKGTHEFT \
 - Autotheft: TFMV, AUTOTH, TMVP, CARJCK, MVTHFT \
@@ -166,7 +165,40 @@ tract_points %>%
   scale_color_natparks_d(name = "SmokyMtns")
 ```
 
+## Exploratory Data Analysis - Saint Paul
 
+Explore year distribution of crimes in Minneapolis.
+
+```{r}
+ggplot() +
+  geom_sf(data=tract_aggregated_sp, aes(fill=crimes_per_1000d), lwd=0.4, alpha =0.8)+
+  theme_classic()+
+  facet_wrap(~year)+
+  scale_fill_natparks_d(name = "Olympic")+
+  labs(title = "Crimes per 1000 people by Saint Paul census tract 2022", fill = "")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size = 9), 
+        axis.line = element_blank(), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank())
+```
+
+Look at overall trend in number of crimes per year.
+
+```{r}
+tract_points_sp %>%
+  count(year) %>%
+  ggplot(aes(x=year, y=n))+
+  geom_point()+
+  geom_line()+
+  ylim(c(5000, 40000))+
+  scale_x_continuous(breaks = c(2014, 2016, 2018, 2020, 2022))+
+  theme_classic()+
+  labs(x="Year", y= "", title = "Number of Recorded Saint Paul Crimes by Year")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size =10), 
+        axis.title.x = element_text(family = "mono"))
+```
 
 
 
