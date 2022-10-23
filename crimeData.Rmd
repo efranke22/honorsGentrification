@@ -277,29 +277,13 @@ intersections_clean %>%
 
 ### Estimating addresses when given the block
 
-```{r}
+```{r, eval=FALSE}
 blocks <- saintpaulcrime %>%
   filter(!str_detect(BLOCK, "&")) %>%
   select(DATE, INCIDENT, BLOCK) %>%
   mutate(BLOCK = str_replace(BLOCK, "X", "0")) %>%
   tidygeocoder::geocode(BLOCK, method = 'osm', lat = latitude, long = longitude)
 
-do_one_sim_three <- function(i){
-  # simulate null trait
-  blocks <- saintpaulcrime %>%
-  filter(!str_detect(BLOCK, "&")) %>%
-  select(DATE, INCIDENT, BLOCK) %>%
-  mutate(BLOCK = str_replace(BLOCK, "X", "0")) %>%
-  distinct(BLOCK)
-  address_lat_long = data.frame(address = c(), lat = c(), long = c())
-  # implement GWAS
-  for(i in 1:32562){
-    address_lat_long$address[i] <- blocks$BLOCK
-    address_lat_long$latitude[i] <- tidygeocoder::geocode(blocks$BLOCK %>% as.data.frame(), method = 'osm', lat = latitude, long = longitude)$latitude
-    address_lat_lpng$longitude[i] <- tidygeocoder::geocode(blocks$BLOCK %>% as.data.frame(), method = 'osm', lat = latitude, long = longitude)$longitude
-  }
-}
-
-mclapply(1, do_one_sim_three, mc.cores = 4)
+save(blocks, file = "Data/Crime/address_latlngs.RData")
 ```
 
