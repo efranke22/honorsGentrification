@@ -272,7 +272,10 @@ intersections_clean <- streets2 %>%
 intersections_clean %>%
   left_join(matched_lat_lngs, by = c("combined" = "USER_combined")) %>%
   distinct(DATE, X, Y, INCIDENT) %>%
-  na.omit()
+  na.omit() %>%
+  rename("longitude" = "X", 
+         "latitude" = "Y") %>%
+  mutate(year = as.numeric(substr(DATE,1, 4)))
 ```
 
 ### Estimating addresses when given the block
@@ -283,7 +286,14 @@ blocks <- saintpaulcrime %>%
   select(DATE, INCIDENT, BLOCK) %>%
   mutate(BLOCK = str_replace(BLOCK, "X", "0")) %>%
   tidygeocoder::geocode(BLOCK, method = 'osm', lat = latitude, long = longitude)
-
 save(blocks, file = "Data/Crime/address_latlngs.RData")
+```
+
+```{r}
+load("Data/Crime/address_latlngs.RData")
+address_clean <- blocks %>%
+  select(-BLOCK) %>%
+  mutate(year = as.numeric(substr(DATE,1, 4))) %>%
+  na.omit()
 ```
 
