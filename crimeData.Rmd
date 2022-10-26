@@ -305,6 +305,9 @@ address_clean <- blocks %>%
   select(-BLOCK) %>%
   mutate(year = as.numeric(substr(DATE,1, 4))) %>%
   na.omit()
+
+blocks %>%
+  filter(is.na(latitude))
 ```
 
 ### Combine intersection and block crimes 

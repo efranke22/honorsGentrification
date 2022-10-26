@@ -29,9 +29,11 @@ census_api_key("f0d9e7b9eb0a91da1b9d33277cf20e264c19e197", install = TRUE, overw
 ```
 
 The beginning of this study is 2010. Understand what variables are available through the American Community Survey in 2010 (which represents the 2006-2010) and the decennial census. 
+
 ```{r}
 # View variables available from the 2010 census 
 variables2010 <- load_variables(year = 2010, dataset = "sf1")
+
 # Select variables of interest from 2010 census 
 dicennial2010 <- get_decennial(year = 2010, state = "MN", geography = "tract", variables = c("H012001", "P008001", "P008002", "P008003", "P008004", "P016001", "P016002", "P016003", "H003001", "H003002", "H003003", "H004001", "H004002", "H004003", "H004004", "P012002", "P012010", "P012011", "P012012", "P012026", "P012034", "P012035", "P012036"), geometry = TRUE, output='wide') %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey", "Anoka", "Carver", "Dakota", "Scott", "Washington")) %>% # select 7 metropolitan counties
@@ -65,6 +67,7 @@ dicennial2010 <- get_decennial(year = 2010, state = "MN", geography = "tract", v
 
 # View variables from 2006 - 2010 ACS (for additional income/education information)
 acsvariables2010 <- load_variables(year = 2010, dataset = "acs5") 
+
 # Select variables of interest from 2010 ACS
 acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c(	
 "B01003_001", "B06011_001", "B19313_001", "B23006_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001"), output = 'wide') %>%
@@ -114,12 +117,14 @@ acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c
 ```
 
 There is no census for 2015, but we can load the same variables as from the 2010 ACS. 
+
 ```{r}
 # Select variables of interest from 2015 ACS
 acs2015 <- get_acs(year = 2015, state = "MN", geography = "tract", variables = c("B06011_001", "B19313_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001"), output = "wide")
 ```
 
 Finally, we can do the same thing for the 2020 ACS. There is a decennial census for 2020 but the variables we selected from 2010 are not yet included in that dataset, so I just stuck with the ACS.
+
 ```{r}
 # Select variables of interest from 2020 ACS
 acs2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c("B06011_001", "B19313_001", "B23006_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001"), output = "wide") %>%
