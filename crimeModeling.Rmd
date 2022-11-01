@@ -23,16 +23,41 @@ crimes_wide_minn <- tract_aggregated %>%
   st_drop_geometry() %>%
   pivot_wider(id_cols = c(tract:canGent_gentrified),names_from = year, values_from = crimes_per_1000) %>%
   replace(is.na(.), 0) %>%
-  mutate(avg2010to2015 = (`2010` + `2011` + `2012` + `2013` + `2014` + `2015`)/6)
+  mutate(avg2010to2015 = (`2010` + `2011` + `2012` + `2013` + `2014` + `2015`)/6) %>%
+  mutate(city = "Minneapolis")
 
 crimes_wide_minn$canGent_gentrified <- relevel(crimes_wide_minn$canGent_gentrified, ref = "1")
+
+crimes_wide_sp <- tract_aggregated_sp %>%
+  mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tract:canGent_gentrified),names_from = year, values_from = crimes_per_1000) %>%
+  replace(is.na(.), 0) %>%
+  mutate(city = "Saint Paul")
+
+crimes_wide_sp$canGent_gentrified <- relevel(crimes_wide_sp$canGent_gentrified, ref = "1")
 ```
+
+```{r}
+cw_sp_small <- crimes_wide_sp %>%
+  select(tract, canGent_gentrified, population_2010, `2015`, `2021`, city)
+cw_minn_small <- crimes_wide_minn %>%
+  select(tract, canGent_gentrified, population_2010, `2015`, `2021`, city)
+crimes_wide_all <- bind_rows(cw_sp_small, cw_minn_small)
+```
+
 
 Models predicting 2022 crime controlling for 2010-2015 crime rate:
 
 ```{r}
 mod1 = glm(`2021` ~ canGent_gentrified + avg2010to2015, data = crimes_wide_minn, family = "poisson")
 summary(mod1)
+
+mod1_sp = glm(`2021` ~ canGent_gentrified + `2015`, data = crimes_wide_sp, family = "poisson")
+summary(mod1_sp)
+
+mod1_all = glm(`2021` ~ canGent_gentrified + `2015`, data = crimes_wide_all, family = "poisson")
+summary(mod1_all)
 ```
 
 Models predicting 2022 crime controlling for 2010-2015 crime rate and population:
@@ -40,6 +65,15 @@ Models predicting 2022 crime controlling for 2010-2015 crime rate and population
 ```{r}
 mod2 = glm(`2021` ~ canGent_gentrified + avg2010to2015 + population_2010, data = crimes_wide_minn, family = "poisson")
 summary(mod2)
+
+mod3 = glm(`2021` ~ canGent_gentrified + `2015` + population_2010, data = crimes_wide_minn, family = "poisson")
+summary(mod3)
+
+mod2_sp = glm(`2021` ~ canGent_gentrified + `2015` + population_2010, data = crimes_wide_sp, family = "poisson")
+summary(mod2_sp)
+
+mod2_all = glm(`2021` ~ city*canGent_gentrified + `2015` + population_2010, data = crimes_wide_all, family = "poisson")
+summary(mod2_all)
 ```
 
 Models predicting violent crime:
