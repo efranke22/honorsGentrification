@@ -76,6 +76,13 @@ mod2_all = glm(`2021` ~ city*canGent_gentrified + `2015` + population_2010, data
 summary(mod2_all)
 ```
 
+```{r}
+crimes_wide_all %>%
+  ggplot(aes(x=canGent_gentrified, y=(`2021`-`2015`), color = city))+
+  geom_boxplot()
+```
+
+
 Models predicting violent crime:
 
 ```{r}
