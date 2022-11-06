@@ -272,7 +272,7 @@ final_condensed <- acs2020clean %>%
   left_join(acs2010clean, by = c("tractmod" = "tract_2010")) %>%
   select(tractmod, tract_2020, GEOID_2020, GEOID_2010, county_2020, population_2010, medianIncome_2020, total25to64_2020, bachelors25to64_2020, totalStructure_2010, builtSince2005_2010, built2000to2004_2010, built1990to1999_2010, built1980to1989_2010, built1970to1979_2010, built1960to1969_2010, built1950to1959_2010, built1940to1949_2010, builtPre1940_2010, medContractRent_2020, medGrossRent_2020, medianHomeValue_2020, county_2020, medianIncome_2010, total25to64_2010, bachelors25to64_2010, medContractRent_2010, medGrossRent_2010, medianHomeValue_2010) %>%
   ungroup() %>%
-  group_by(tractmod, population_2010, totalStructure_2010, builtSince2005_2010, built2000to2004_2010, built1990to1999_2010, built1980to1989_2010, built1970to1979_2010, built1960to1969_2010, built1950to1959_2010, built1940to1949_2010, builtPre1940_2010, medianIncome_2010, total25to64_2010, bachelors25to64_2010, medContractRent_2010, medGrossRent_2010, medianHomeValue_2010)%>%
+  group_by(tractmod, county_2020, population_2010, totalStructure_2010, builtSince2005_2010, built2000to2004_2010, built1990to1999_2010, built1980to1989_2010, built1970to1979_2010, built1960to1969_2010, built1950to1959_2010, built1940to1949_2010, builtPre1940_2010, medianIncome_2010, total25to64_2010, bachelors25to64_2010, medContractRent_2010, medGrossRent_2010, medianHomeValue_2010)%>%
   summarize(medianIncome_2020 = weighted.mean(medianIncome_2020, population_2010, na.rm = TRUE), 
              total25to64_2020 = weighted.mean(total25to64_2020, population_2010, na.rm = TRUE),
              bachelors25to64_2020 = weighted.mean(bachelors25to64_2020, population_2010, na.rm = TRUE),

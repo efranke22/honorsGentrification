@@ -28,6 +28,8 @@ roads <- st_read("ShpData/tl_2019_27_prisecroads")
 load("Data/tractData/originalTidycensus/acs2010.RData")
 load("Data/tractData/originalTidycensus/acs2015.RData")
 load("Data/tractData/cleaned/final_condensed_msp.RData")
+load("Data/tractData/cleaned/final_condensed.RData")
+load("Data/tractData/originalTidycensus/dicennial2010.RData")
 ```
 
 ## Create organized table of 2010 census tract information
@@ -35,8 +37,6 @@ load("Data/tractData/cleaned/final_condensed_msp.RData")
 ```{r}
 tract2010 <- dicennial2010 %>%
   left_join(acs2010, by = c("tract", "county", "GEOID"))
-
-
 ```
 
 ## Methods for defining gentrifiable tracts
@@ -45,6 +45,16 @@ Lei Ding (2016) of the Federal Reserve Bank of Philadelphia (2016) defines a gen
 - median household income is less than the citywide median income
 
 ```{r}
+final_condensed_msp <- final_condensed_msp %>%
+  group_by(city) %>%
+  mutate(cityMedInc = median(medianIncome_2010), 
+         Ding = case_when(medianIncome_2010 > cityMedInc ~ 0, 
+                          TRUE ~ 1)) %>%
+  select(-cityMedInc)
+```
+
+
+```{r, eval=FALSE}
 gentDing <- tract2010 %>%
   filter(county %in% c("Hennepin", "Ramsey")) %>%
   group_by(county) %>%
@@ -55,11 +65,25 @@ gentDing <- tract2010 %>%
 ```
 
 Professor Lance Freeman (2005): all three measurements below must be met:
-- restricts analysis to neighborhoods within the central city of any given metropolitan area. \
+- restricts analysis to neighborhoods within the central city of any given metropolitan area (already complete for our dataset). \
 - isolates low-income census tracts, using the metropolitan area median housing income as the comparison rather than the citywide median. \
 - looks at the share of the housing stock built within the previous 20 years as a measure of relative disinvestment. Tracts in which the share of housing built in the previous 20 years is less than the median for all tracts throughout the metropolitan area are identified.
 
 ```{r}
+# find metro area mean income
+final_condensed %>%
+  mutate(propBuiltSince1990 = (builtSince2005_2010 + built2000to2004_2010 + built1990to1999_2010)/((builtSince2005_2010 + built2000to2004_2010 + built1990to1999_2010 + built1980to1989_2010 + built1970to1979_2010 + built1960to1969_2010 + built1950to1959_2010 + built1940to1949_2010+ builtPre1940_2010))) %>%
+  summarize(medianMetroInc = median(medianIncome_2010), 
+            medianHousing = median(propBuiltSince1990))
+
+final_condensed_msp <- final_condensed_msp %>%
+  mutate(propBuiltSince1990 = (builtSince2005_2010 + built2000to2004_2010 + built1990to1999_2010)/((builtSince2005_2010 + built2000to2004_2010 + built1990to1999_2010 + built1980to1989_2010 + built1970to1979_2010 + built1960to1969_2010 + built1950to1959_2010 + built1940to1949_2010+ builtPre1940_2010)),
+         Freeman = case_when(medianIncome_2010 <= 31863 & propBuiltSince1990 <0.0827436	 ~ 1, 
+                             TRUE ~ 0))
+```
+
+
+```{r, eval=FALSE}
 # find metro area mean income
 tract2010 %>%
   st_drop_geometry() %>%
@@ -81,6 +105,8 @@ Professor Lisa Bates (2013): census tracts must meet at least 3/4 of the criteri
 - a higher percentage of people of color than citywide \
 - a larger share of low-income households than the citywide rate \
 - a lower rate of residents with bachelor’s degrees than the citywide rate \
+
+**NOTE: need to get rentOccupied and ownership information and race information from acs surveys and use it here**.
 
 ```{r}
 gentBates <- tract2010 %>%
