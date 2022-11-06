@@ -289,9 +289,11 @@ load("Data/tractData/minneapolis_tracts.RData")
 load("Data/tractData/saintPaul_tracts.RData")
 
 a <- minneapolis_tracts %>%
-  left_join(final_condensed, by = "tractmod")
+  left_join(final_condensed, by = "tractmod") %>%
+  mutate(city = "Minneapolis")
 b <- saintPaul_tracts %>%
-  left_join(final_condensed, by = "tractmod")
+  left_join(final_condensed, by = "tractmod") %>%
+  mutate(city = "Saint Paul")
 
 final_condensed_msp <- bind_rows(a,b)
 ```

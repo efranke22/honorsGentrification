@@ -25,16 +25,18 @@ library(ggtext)
 
 ```{r}
 roads <- st_read("ShpData/tl_2019_27_prisecroads")
-load("Data/acs2010.RData")
-load("Data/dicennial2010.RData")
+load("Data/tractData/originalTidycensus/acs2010.RData")
+load("Data/tractData/originalTidycensus/acs2015.RData")
+load("Data/tractData/cleaned/final_condensed_msp.RData")
 ```
-
 
 ## Create organized table of 2010 census tract information
 
 ```{r}
 tract2010 <- dicennial2010 %>%
   left_join(acs2010, by = c("tract", "county", "GEOID"))
+
+
 ```
 
 ## Methods for defining gentrifiable tracts
