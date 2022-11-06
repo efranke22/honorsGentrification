@@ -217,10 +217,10 @@ acs2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c
 
 Write ACS and decennial files to Data folder.
 ```{r, eval=FALSE}
-save(acs2010, file = 'Data/acs2010.RData')
-save(dicennial2010, file = "Data/dicennial2010.RData")
-save(acs2015, file = "Data/acs2015.RData")
-save(acs2020, file = "Data/acs2020.RData")
+save(acs2010, file = 'Data/tractData/originalTidycensus/acs2010.RData')
+save(dicennial2010, file = "Data/tractData/originalTidycensus/dicennial2010.RData")
+save(acs2015, file = "Data/tractData/originalTidycensus/acs2015.RData")
+save(acs2020, file = "Data/tractData/originalTidycensus/acs2020.RData")
 ```
 
 

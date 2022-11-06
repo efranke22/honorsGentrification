@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 This is the 2nd file in my data cleaning and exploration process. \
-Steps in this file: Identify and deal with census tracts that changed from 2010 to 2020.
+Steps in this file: Identify and deal with census tracts that changed from 2010 to 2020. 
 
 ```{r}
 library(tidycensus)
@@ -18,26 +18,23 @@ library(tidyverse)
 library(survey)
 library(srvyr)
 library(sf)
-load("Data/acs2010.RData")
-load("Data/acs2015.RData")
-load("Data/acs2020.RData")
-load("Data/gentrifiable.RData")
+load("Data/tractData/originalTidycensus/acs2010.RData")
+load("Data/tractData/originalTidycensus/acs2015.RData")
+load("Data/tractData/originalTidycensus/acs2020.RData")
 ```
-
 
 ## Identifying census tract changes from 2010 to 2020
 
-The census tract borders are not the same moving from 2010 to 2020. In order determine gentrified tracts, the first step is to find discrepancies.
+The census tract borders are not the same moving from 2010 to 2020. 2015 borders are the same as 2010.
 
 The following code shows tracts that did not properly join, meaning tract numbers that were added/deleted when moving from 2010 to 2020.
+
 ```{r}
 acs2010metro <- acs2010 %>%
-  filter(county %in% c("Hennepin", "Ramsey")) %>%
   arrange(GEOID) %>%
   mutate(year2010 = 2010) %>%
   select(tract, year2010, county)
 acs2020metro <- acs2020  %>%
-  filter(county %in% c("Hennepin", "Ramsey")) %>%
   arrange(GEOID) %>%
   mutate(year2020 = 2020) %>%
   select(tract, year2020, county)
@@ -49,12 +46,11 @@ acs2020metro %>%
   arrange(tract)
 ```
 
-Changes are recorded here: 
+Tracts that break into 2 or 3:
 - Hennepin 38 in 2010 --> 38.01, 38.02 in 2020 \
 - Hennepin 202 --> 202.01, 202.02 \
 - Hennepin 232 --> 232.01, 232.02 \
 - Hennepin 234 --> 234.01, 234.02 \
-- Hennepin 249.01, 249.02 --> 249.04 in 2020 (both 249.01 and 249.02 are gentrifiable) \
 - Hennepin 257.01 --> 257.03, 257.04 in 2020 \
 - Hennepin 259.03 --> 259.08, 259.09 in 2020 \
 - Hennepin 260.16 --> 260.23, 260.24 in 2020 \
@@ -77,28 +73,36 @@ Changes are recorded here:
 - Ramsey 376.02 --> 376.03, 376.04 \
 - Ramsey 401.00 --> 401.01, 401.02 \
 - Ramsey 406.04 --> 406.05, 406.06 \
-- Ramsey 407.03 --> Ramsey 407.08, 407.09 \
-- Ramsey 408.02, 408.03 --> 408.04, 408.05 (tract borders change) \
+- Ramsey 407.03 --> 407.08, 407.09 \
 - Ramsey 430.00 --> 430.01, 430.02 \
-- Hennepin 1023.00 + 1029.00 --> 1263.00 in 2020 (both gentrifiable) \
 - Hennepin 1040.00 --> 1040.01, 1040.02 \
 - Hennepin 1048.00 --> 1048.01, 1048.02 \
 - Hennepin 1049.00 --> 1049.01, 1049.02 \
 - Hennepin 1261.00 --> 1261.01, 1261.02 \
 - Hennepin 1262.00 --> 1262.01, 1262.02 \
 
+Tracts that merge in 2020:
+- Hennepin 249.01, 249.02 --> 249.04 in 2020 \
+- Hennepin 1023.00 + 1029.00 --> 1263.00 in 2020 \
+
+Tracts that change borders
+- Ramsey 408.02, 408.03 --> 408.04, 408.05 (tract borders change) \
+
 ## Clean the data
+
 Now, make changes to the data. First, change column names of ACS datasets to include the year so that when joining it is clear which value belongs to which.
+
 ```{r}
 colnames(acs2020) <-paste(colnames(acs2020),"2020",sep="_")
 colnames(acs2010) <-paste(colnames(acs2010), "2010", sep="_")
+colnames(acs2015) <-paste(colnames(acs2015), "2015", sep="_")
 ```
  
-Clean the ACS 2020 data, creating a modified tract column that represents the original 2010 tract number for all tracts splitting into two or three tracts in 2020. Do not include tracts 9800 or 9801, which is was very unclear what happened to over the 10 year period. Tracts 408.04 and 408.05 must be dealt with specially, as these tracts were labeled 408.02 and 408.03 in 2010 but the borders changed over the decade.
+Clean the ACS 2020 data, creating a modified tract column that represents the original 2010 tract number for all tracts splitting into two or three tracts in 2020. Do not include tracts 9800 or 9801, which is was very unclear what happened to over the 10 year period.
+
 ```{r}
 acs2020_clean <- acs2020 %>%
   mutate(tract_2020 = as.numeric(tract_2020)) %>%
-  filter(county_2020 %in% c("Hennepin", "Ramsey")) %>%
   mutate(tractmod = case_when(tract_2020 %in% c(38.01,38.02) ~ 38.00, 
                                tract_2020 %in% c(202.01, 202.02) ~ 202.00, 
                                tract_2020 %in% c(232.01, 232.02) ~ 232.00, 
@@ -136,7 +140,11 @@ acs2020_clean <- acs2020 %>%
                               TRUE ~ tractmod)) %>%
   filter(tract_2020 != 9800, tract_2020 != 9801, 
          tract_2020 != 408.04, tract_2020 != 408.05)
+```
 
+Tracts 408.04 and 408.05 must be dealt with specially, as these tracts were labeled 408.02 and 408.03 in 2010 but the borders changed over the decade.
+
+```{r}
 acs2020groups <- acs2020 %>%
   mutate(tract_2020 = as.numeric(tract_2020)) %>%
   filter(tract_2020 %in% c(408.04, 408.05)) %>%
@@ -160,12 +168,17 @@ acs2020groups <- acs2020 %>%
             medianHomeValue_2020 = mean(medianHomeValue_2020)) %>%
   summarize(across(where(is.double), round)) %>%
   mutate(tract_2020 = 408.04, tractmod = 408.04, county_2020 = "Hennepin")
+```
 
+Combine the two datasets. 
+
+```{r}
 acs2020clean <- acs2020_clean %>%
   bind_rows(acs2020groups)
 ```
 
-Do a similar process for 2010 tracts. There are a few problematic tracts. 249.01 and 249.02 in 2010 became one tract (249.04) in 2020. Tracts 1023.00 and 1029.00 in 2010 became 1263.00 in 2020.
+Deal with the problematic 2010 tracts. 249.01 and 249.02 in 2010 became one tract (249.04) in 2020. Tracts 1023.00 and 1029.00 in 2010 became 1263.00 in 2020. We are also treating the two tracts that changed borders from 2010 to 2020 as one large tract in both years.
+
 ```{r}
 acs2010groups <- acs2010 %>%
   mutate(tract_2010 = as.numeric(tract_2010)) %>%
@@ -173,7 +186,7 @@ acs2010groups <- acs2010 %>%
   mutate(grouped = case_when(tract_2010 %in% c(249.01, 249.02) ~ 249.04, 
                              tract_2010 %in% c(1023.00, 1029.00) ~ 1263.00,
                              TRUE ~ 408.04), 
-         population = c(1032, 2383, 1347, 1148, 1778, 4774)) %>%
+         population = population_2010) %>%
   group_by(grouped) %>%
   summarize(population_2010 = sum(population_2010),
             medianIncome_2010 = weighted.mean(medianIncome_2010, population),
@@ -192,8 +205,8 @@ acs2010groups <- acs2010 %>%
             built1940to1949_2010 = weighted.mean(built1940to1949_2010, population),
             builtPre1940_2010 = weighted.mean(builtPre1940_2010, population),
             medContractRent_2010 = weighted.mean(medContractRent_2010, population),
-            medGrossRent_2010 = weighted.mean(medGrossRent_2010, population), 
-            medianHomeValue_2010 = weighted.mean(medianHomeValue_2010, population)) %>%
+            medGrossRent_2010 = weighted.mean(medGrossRent_2010, population, na.rm = TRUE), 
+            medianHomeValue_2010 = weighted.mean(medianHomeValue_2010, population, na.rm=TRUE)) %>%
   summarize(across(where(is.double), round)) %>%
   mutate(grouped = c(249.04, 408.04, 1263.00)) %>%
   rename("tract_2010" = "grouped") %>%
@@ -205,9 +218,108 @@ acs2010clean <- acs2010 %>%
   bind_rows(acs2010groups)
 ```
 
+```{r}
+acs2015groups <- acs2015 %>%
+  mutate(tract_2015 = as.numeric(tract_2015)) %>%
+  filter(tract_2015 %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03)) %>%
+  mutate(grouped = case_when(tract_2015 %in% c(249.01, 249.02) ~ 249.04, 
+                             tract_2015 %in% c(1023.00, 1029.00) ~ 1263.00,
+                             TRUE ~ 408.04), 
+         population = population_2015) %>%
+  group_by(grouped) %>%
+  summarize(population_2015 = sum(population_2015),
+            medianIncome_2015 = weighted.mean(medianIncome_2015, population, na.rm = TRUE),
+            aggregateIncome_2015 = weighted.mean(aggregateIncome_2015, population),
+            total25to64_2015 = weighted.mean(total25to64_2015, population),
+            bachelors25to64_2015 = weighted.mean(bachelors25to64_2015, population),
+            medYrStructureBuilt_2015 = weighted.mean(medYrStructureBuilt_2015, population, na.rm=TRUE),
+            totalStructure_2015 = weighted.mean(totalStructure_2015, population),
+            builtSince2005_2015 = weighted.mean(builtSince2005_2015, population),
+            built2000to2004_2015 = weighted.mean(built2000to2004_2015, population),
+            built1990to1999_2015 = weighted.mean(built1990to1999_2015, population),
+            built1980to1989_2015 = weighted.mean(built1980to1989_2015, population),
+            built1970to1979_2015 = weighted.mean(built1970to1979_2015, population),
+            built1960to1969_2015 = weighted.mean(built1960to1969_2015, population),
+            built1950to1959_2015 = weighted.mean(built1950to1959_2015, population),
+            built1940to1949_2015 = weighted.mean(built1940to1949_2015, population),
+            builtPre1940_2015 = weighted.mean(builtPre1940_2015, population),
+            medContractRent_2015 = weighted.mean(medContractRent_2015, population, na.rm=TRUE),
+            medGrossRent_2015 = weighted.mean(medGrossRent_2015, population, na.rm=TRUE), 
+            medianHomeValue_2015 = weighted.mean(medianHomeValue_2015, population, na.rm=TRUE)) %>%
+  summarize(across(where(is.double), round)) %>%
+  mutate(grouped = c(249.04, 408.04, 1263.00)) %>%
+  rename("tract_2015" = "grouped") %>%
+  mutate(county_2015 = c("Hennepin", "Ramsey", "Hennepin"))
+
+acs2015clean <- acs2015 %>%
+  mutate(tract_2015 = as.numeric(tract_2015)) %>%
+  filter(!(tract_2015 %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03))) %>%
+  bind_rows(acs2015groups)
+```
+
 Finally, join the 2010 and 2020 data together.
+
 ```{r}
 final <- acs2020clean %>%
   left_join(acs2010clean, by = c("tractmod" = "tract_2010")) %>%
-  select(tractmod, tract_2020, everything())
+  select(tractmod, tract_2020, GEOID_2020, GEOID_2010, county_2020, population_2010, medianIncome_2020, total25to64_2020, bachelors25to64_2020, totalStructure_2010, builtSince2005_2010, built2000to2004_2010, built1990to1999_2010, built1980to1989_2010, built1970to1979_2010, built1960to1969_2010, built1950to1959_2010, built1940to1949_2010, builtPre1940_2010, medContractRent_2020, medGrossRent_2020, medianHomeValue_2020, county_2020, medianIncome_2010, total25to64_2010, bachelors25to64_2010, medContractRent_2010, medGrossRent_2010, medianHomeValue_2010)
 ```
+
+Also create a final dataset where tracts splitting into multiple tracts in 2020 are treated as the same tract that they were in 2010. 
+
+```{r}
+final_condensed <- acs2020clean %>%
+  left_join(acs2010clean, by = c("tractmod" = "tract_2010")) %>%
+  select(tractmod, tract_2020, GEOID_2020, GEOID_2010, county_2020, population_2010, medianIncome_2020, total25to64_2020, bachelors25to64_2020, totalStructure_2010, builtSince2005_2010, built2000to2004_2010, built1990to1999_2010, built1980to1989_2010, built1970to1979_2010, built1960to1969_2010, built1950to1959_2010, built1940to1949_2010, builtPre1940_2010, medContractRent_2020, medGrossRent_2020, medianHomeValue_2020, county_2020, medianIncome_2010, total25to64_2010, bachelors25to64_2010, medContractRent_2010, medGrossRent_2010, medianHomeValue_2010) %>%
+  ungroup() %>%
+  group_by(tractmod, population_2010, totalStructure_2010, builtSince2005_2010, built2000to2004_2010, built1990to1999_2010, built1980to1989_2010, built1970to1979_2010, built1960to1969_2010, built1950to1959_2010, built1940to1949_2010, builtPre1940_2010, medianIncome_2010, total25to64_2010, bachelors25to64_2010, medContractRent_2010, medGrossRent_2010, medianHomeValue_2010)%>%
+  summarize(medianIncome_2020 = weighted.mean(medianIncome_2020, population_2010, na.rm = TRUE), 
+             total25to64_2020 = weighted.mean(total25to64_2020, population_2010, na.rm = TRUE),
+             bachelors25to64_2020 = weighted.mean(bachelors25to64_2020, population_2010, na.rm = TRUE),
+             medContractRent_2020 = weighted.mean(medContractRent_2020, population_2010, na.rm = TRUE),
+            medGrossRent_2020 = weighted.mean(medGrossRent_2020, population_2010, na.rm = TRUE),
+            medHomeValue_2020 = weighted.mean(medianHomeValue_2020, population_2010, na.rm = TRUE)) %>%
+  ungroup()
+```
+
+Filter for only tracts in the Saint Paul and Minneapolis city limits. 
+
+```{r}
+load("Data/tractData/minneapolis_tracts.RData")
+load("Data/tractData/saintPaul_tracts.RData")
+
+a <- minneapolis_tracts %>%
+  left_join(final_condensed, by = "tractmod")
+b <- saintPaul_tracts %>%
+  left_join(final_condensed, by = "tractmod")
+
+final_condensed_msp <- bind_rows(a,b)
+```
+
+Save finished data sets
+
+```{r}
+save(final, file = "Data/tractData/cleaned/final.RData")
+save(final_condensed, file = "Data/tractData/cleaned/final_condensed.RData")
+save(final_condensed_msp, file = "Data/tractData/cleaned/final_condensed_msp.RData")
+```
+
+```{r, eval=FALSE}
+minneapolis_tracts <- tract_aggregated %>%
+  count(tract) %>%
+  arrange(desc(n)) %>%
+  select(tract) %>%
+  rename("tractmod" = "tract")
+
+saintPaul_tracts <- tract_aggregated_sp %>%
+  count(tract) %>%
+  arrange(desc(n)) %>%
+  select(tract) %>%
+  rename("tractmod" = "tract")
+
+save(minneapolis_tracts, file = "Data/tractData/minneapolis_tracts.RData")
+save(saintPaul_tracts, file = "Data/tractData/saintPaul_tracts.RData")
+```
+
+
+
