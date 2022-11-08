@@ -139,7 +139,8 @@ acs2020_clean <- acs2020 %>%
   mutate(tractmod = case_when(is.na(tractmod) ~ tract_2020,
                               TRUE ~ tractmod)) %>%
   filter(tract_2020 != 9800, tract_2020 != 9801, 
-         tract_2020 != 408.04, tract_2020 != 408.05)
+         tract_2020 != 408.04, tract_2020 != 408.05) %>%
+  select(GEOID_2020, population_2020, medianIncome_2020, total25to64_2020, bachelors25to64_2020, medContractRent_2020, medianHomeValue_2020, tenureTotal_2020, tenureOwned_2020, tenureRented_2020, totalRace_2020, totalWhite_2020, tract_2020, county_2020, tractmod)
 ```
 
 Tracts 408.04 and 408.05 must be dealt with specially, as these tracts were labeled 408.02 and 408.03 in 2010 but the borders changed over the decade.
@@ -148,24 +149,18 @@ Tracts 408.04 and 408.05 must be dealt with specially, as these tracts were labe
 acs2020groups <- acs2020 %>%
   mutate(tract_2020 = as.numeric(tract_2020)) %>%
   filter(tract_2020 %in% c(408.04, 408.05)) %>%
-  summarize(medianIncome_2020 = mean(medianIncome_2020),
-            aggregateIncome_2020 = mean(aggregateIncome_2020),
-            total25to64_2020 = mean(total25to64_2020),
-            bachelors25to64_2020 = mean(bachelors25to64_2020),
-            medYrStructureBuilt_2020 = mean(medYrStructureBuilt_2020),
-            totalStructure_2020 = mean(totalStructure_2020),
-            builtSince2005_2020 = mean(builtSince2005_2020),
-            built2000to2004_2020 = mean(built2000to2004_2020),
-            built1990to1999_2020 = mean(built1990to1999_2020),
-            built1980to1989_2020 = mean(built1980to1989_2020),
-            built1970to1979_2020 = mean(built1970to1979_2020),
-            built1960to1969_2020 = mean(built1960to1969_2020),
-            built1950to1959_2020 = mean(built1950to1959_2020),
-            built1940to1949_2020 = mean(built1940to1949_2020),
-            builtPre1940_2020 = mean(builtPre1940_2020),
-            medContractRent_2020 = mean(medContractRent_2020),
-            medGrossRent_2020 = mean(medGrossRent_2020), 
-            medianHomeValue_2020 = mean(medianHomeValue_2020)) %>%
+  mutate(pop_weight = population_2020) %>%
+  summarize(population_2020 = sum(population_2020),
+            medianIncome_2020 = weighted.mean(medianIncome_2020, pop_weight),
+            total25to64_2020 = sum(population_2020),
+            bachelors25to64_2020 = sum(bachelors25to64_2020),
+            medContractRent_2020 = weighted.mean(medContractRent_2020, pop_weight),
+            medianHomeValue_2020 = weighted.mean(medianHomeValue_2020, pop_weight), 
+            tenureTotal_2020 = sum(tenureTotal_2020), 
+            tenureOwned_2020 = sum(tenureOwned_2020),
+            tenureRented_2020 = sum(tenureRented_2020), 
+            totalRace_2020 = sum(totalRace_2020),
+            totalWhite_2020 = sum(totalWhite_2020)) %>%
   summarize(across(where(is.double), round)) %>%
   mutate(tract_2020 = 408.04, tractmod = 408.04, county_2020 = "Hennepin")
 ```
@@ -190,23 +185,24 @@ acs2010groups <- acs2010 %>%
   group_by(grouped) %>%
   summarize(population_2010 = sum(population_2010),
             medianIncome_2010 = weighted.mean(medianIncome_2010, population),
-            aggregateIncome_2010 = weighted.mean(aggregateIncome_2010, population),
-            total25to64_2010 = weighted.mean(total25to64_2010, population),
-            bachelors25to64_2010 = weighted.mean(bachelors25to64_2010, population),
-            medYrStructureBuilt_2010 = weighted.mean(medYrStructureBuilt_2010, population),
-            totalStructure_2010 = weighted.mean(totalStructure_2010, population),
-            builtSince2005_2010 = weighted.mean(builtSince2005_2010, population),
-            built2000to2004_2010 = weighted.mean(built2000to2004_2010, population),
-            built1990to1999_2010 = weighted.mean(built1990to1999_2010, population),
-            built1980to1989_2010 = weighted.mean(built1980to1989_2010, population),
-            built1970to1979_2010 = weighted.mean(built1970to1979_2010, population),
-            built1960to1969_2010 = weighted.mean(built1960to1969_2010, population),
-            built1950to1959_2010 = weighted.mean(built1950to1959_2010, population),
-            built1940to1949_2010 = weighted.mean(built1940to1949_2010, population),
-            builtPre1940_2010 = weighted.mean(builtPre1940_2010, population),
+            total25to64_2010 = sum(total25to64_2010),
+            bachelors25to64_2010 = sum(bachelors25to64_2010),
+            builtSince2005_2010 = sum(builtSince2005_2010),
+            built2000to2004_2010 = sum(built2000to2004_2010),
+            built1990to1999_2010 = sum(built1990to1999_2010),
+            built1980to1989_2010 = sum(built1980to1989_2010),
+            built1970to1979_2010 = sum(built1970to1979_2010),
+            built1960to1969_2010 = sum(built1960to1969_2010),
+            built1950to1959_2010 = sum(built1950to1959_2010),
+            built1940to1949_2010 = sum(built1940to1949_2010),
+            builtPre1940_2010 = sum(builtPre1940_2010),
             medContractRent_2010 = weighted.mean(medContractRent_2010, population),
-            medGrossRent_2010 = weighted.mean(medGrossRent_2010, population, na.rm = TRUE), 
-            medianHomeValue_2010 = weighted.mean(medianHomeValue_2010, population, na.rm=TRUE)) %>%
+            medianHomeValue_2010 = weighted.mean(medianHomeValue_2010, population, na.rm=TRUE), 
+            tenureTotal_2010 = sum(tenureTotal_2010), 
+            tenureOwned_2010 = sum(tenureOwned_2010),
+            tenureRented_2010 = sum(tenureRented_2010), 
+            totalRace_2010 = sum(totalRace_2010),
+            totalWhite_2010 = sum(totalWhite_2010)) %>%
   summarize(across(where(is.double), round)) %>%
   mutate(grouped = c(249.04, 408.04, 1263.00)) %>%
   rename("tract_2010" = "grouped") %>%
@@ -215,7 +211,9 @@ acs2010groups <- acs2010 %>%
 acs2010clean <- acs2010 %>%
   mutate(tract_2010 = as.numeric(tract_2010)) %>%
   filter(!(tract_2010 %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03))) %>%
-  bind_rows(acs2010groups)
+  select(GEOID_2010, population_2010, medianIncome_2010, total25to64_2010, bachelors25to64_2010, builtSince2005_2010, built2000to2004_2010, built1990to1999_2010, built1980to1989_2010, built1970to1979_2010, built1960to1969_2010, built1950to1959_2010, built1940to1949_2010, builtPre1940_2010, medContractRent_2010, medianHomeValue_2010, tenureTotal_2010, tenureOwned_2010, tenureRented_2010, totalRace_2010, totalWhite_2010, tract_2010, county_2010) %>%
+  bind_rows(acs2010groups) %>%
+  filter(tract_2010 != 9800.00)
 ```
 
 ```{r}
@@ -228,24 +226,16 @@ acs2015groups <- acs2015 %>%
          population = population_2015) %>%
   group_by(grouped) %>%
   summarize(population_2015 = sum(population_2015),
-            medianIncome_2015 = weighted.mean(medianIncome_2015, population, na.rm = TRUE),
-            aggregateIncome_2015 = weighted.mean(aggregateIncome_2015, population),
-            total25to64_2015 = weighted.mean(total25to64_2015, population),
-            bachelors25to64_2015 = weighted.mean(bachelors25to64_2015, population),
-            medYrStructureBuilt_2015 = weighted.mean(medYrStructureBuilt_2015, population, na.rm=TRUE),
-            totalStructure_2015 = weighted.mean(totalStructure_2015, population),
-            builtSince2005_2015 = weighted.mean(builtSince2005_2015, population),
-            built2000to2004_2015 = weighted.mean(built2000to2004_2015, population),
-            built1990to1999_2015 = weighted.mean(built1990to1999_2015, population),
-            built1980to1989_2015 = weighted.mean(built1980to1989_2015, population),
-            built1970to1979_2015 = weighted.mean(built1970to1979_2015, population),
-            built1960to1969_2015 = weighted.mean(built1960to1969_2015, population),
-            built1950to1959_2015 = weighted.mean(built1950to1959_2015, population),
-            built1940to1949_2015 = weighted.mean(built1940to1949_2015, population),
-            builtPre1940_2015 = weighted.mean(builtPre1940_2015, population),
-            medContractRent_2015 = weighted.mean(medContractRent_2015, population, na.rm=TRUE),
-            medGrossRent_2015 = weighted.mean(medGrossRent_2015, population, na.rm=TRUE), 
-            medianHomeValue_2015 = weighted.mean(medianHomeValue_2015, population, na.rm=TRUE)) %>%
+            medianIncome_2015 = weighted.mean(medianIncome_2015, population),
+            total25to64_2015 = sum(total25to64_2015),
+            bachelors25to64_2015 = sum(bachelors25to64_2015),
+            medContractRent_2015 = weighted.mean(medContractRent_2015, population),
+            medianHomeValue_2015 = weighted.mean(medianHomeValue_2015, population, na.rm=TRUE), 
+            tenureTotal_2015 = sum(tenureTotal_2015), 
+            tenureOwned_2015 = sum(tenureOwned_2015),
+            tenureRented_2015 = sum(tenureRented_2015), 
+            totalRace_2015 = sum(totalRace_2015),
+            totalWhite_2015 = sum(totalWhite_2015)) %>%
   summarize(across(where(is.double), round)) %>%
   mutate(grouped = c(249.04, 408.04, 1263.00)) %>%
   rename("tract_2015" = "grouped") %>%
@@ -254,15 +244,16 @@ acs2015groups <- acs2015 %>%
 acs2015clean <- acs2015 %>%
   mutate(tract_2015 = as.numeric(tract_2015)) %>%
   filter(!(tract_2015 %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03))) %>%
-  bind_rows(acs2015groups)
+  select(GEOID_2015, population_2015, medianIncome_2015, total25to64_2015, bachelors25to64_2015, medContractRent_2015, medianHomeValue_2015, tenureTotal_2015, tenureOwned_2015, tenureRented_2015, totalRace_2015, totalWhite_2015, tract_2015, county_2015) %>%
+  bind_rows(acs2015groups) %>%
+  filter(tract_2015 != 9800.00)
 ```
 
 Finally, join the 2010 and 2020 data together.
 
 ```{r}
 final <- acs2020clean %>%
-  left_join(acs2010clean, by = c("tractmod" = "tract_2010")) %>%
-  select(tractmod, tract_2020, GEOID_2020, GEOID_2010, county_2020, population_2010, medianIncome_2020, total25to64_2020, bachelors25to64_2020, totalStructure_2010, builtSince2005_2010, built2000to2004_2010, built1990to1999_2010, built1980to1989_2010, built1970to1979_2010, built1960to1969_2010, built1950to1959_2010, built1940to1949_2010, builtPre1940_2010, medContractRent_2020, medGrossRent_2020, medianHomeValue_2020, county_2020, medianIncome_2010, total25to64_2010, bachelors25to64_2010, medContractRent_2010, medGrossRent_2010, medianHomeValue_2010)
+  left_join(acs2010clean, by = c("tractmod" = "tract_2010"))
 ```
 
 Also create a final dataset where tracts splitting into multiple tracts in 2020 are treated as the same tract that they were in 2010. 
@@ -270,16 +261,22 @@ Also create a final dataset where tracts splitting into multiple tracts in 2020 
 ```{r}
 final_condensed <- acs2020clean %>%
   left_join(acs2010clean, by = c("tractmod" = "tract_2010")) %>%
-  select(tractmod, tract_2020, GEOID_2020, GEOID_2010, county_2020, population_2010, medianIncome_2020, total25to64_2020, bachelors25to64_2020, totalStructure_2010, builtSince2005_2010, built2000to2004_2010, built1990to1999_2010, built1980to1989_2010, built1970to1979_2010, built1960to1969_2010, built1950to1959_2010, built1940to1949_2010, builtPre1940_2010, medContractRent_2020, medGrossRent_2020, medianHomeValue_2020, county_2020, medianIncome_2010, total25to64_2010, bachelors25to64_2010, medContractRent_2010, medGrossRent_2010, medianHomeValue_2010) %>%
   ungroup() %>%
-  group_by(tractmod, county_2020, population_2010, totalStructure_2010, builtSince2005_2010, built2000to2004_2010, built1990to1999_2010, built1980to1989_2010, built1970to1979_2010, built1960to1969_2010, built1950to1959_2010, built1940to1949_2010, builtPre1940_2010, medianIncome_2010, total25to64_2010, bachelors25to64_2010, medContractRent_2010, medGrossRent_2010, medianHomeValue_2010)%>%
-  summarize(medianIncome_2020 = weighted.mean(medianIncome_2020, population_2010, na.rm = TRUE), 
-             total25to64_2020 = weighted.mean(total25to64_2020, population_2010, na.rm = TRUE),
-             bachelors25to64_2020 = weighted.mean(bachelors25to64_2020, population_2010, na.rm = TRUE),
-             medContractRent_2020 = weighted.mean(medContractRent_2020, population_2010, na.rm = TRUE),
-            medGrossRent_2020 = weighted.mean(medGrossRent_2020, population_2010, na.rm = TRUE),
-            medHomeValue_2020 = weighted.mean(medianHomeValue_2020, population_2010, na.rm = TRUE)) %>%
-  ungroup()
+  mutate(pop_weight = population_2020) %>%
+  group_by(tractmod) %>%
+  mutate(population_2020 = sum(population_2020),
+            medianIncome_2020 = round(weighted.mean(medianIncome_2020, pop_weight),0),
+            total25to64_2020 = sum(population_2020),
+            bachelors25to64_2020 = sum(bachelors25to64_2020),
+            medContractRent_2020 = round(weighted.mean(medContractRent_2020, pop_weight),0),
+            medianHomeValue_2020 = round(weighted.mean(medianHomeValue_2020, pop_weight),0), 
+            tenureTotal_2020 = sum(tenureTotal_2020), 
+            tenureOwned_2020 = sum(tenureOwned_2020),
+            tenureRented_2020 = sum(tenureRented_2020), 
+            totalRace_2020 = sum(totalRace_2020),
+            totalWhite_2020 = sum(totalWhite_2020)) %>%
+  select(-pop_weight) %>%
+  distinct(tractmod, .keep_all = TRUE)
 ```
 
 Filter for only tracts in the Saint Paul and Minneapolis city limits. 
