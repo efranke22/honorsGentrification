@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This is the 2nd file in my data cleaning and exploration process. \
+This is the 3rd file in my data cleaning and exploration process. \
 Steps in this file: Identify gentrifiable census tracts in 2010. \
 
 ## Load libraries and data 
@@ -29,15 +29,10 @@ load("Data/tractData/originalTidycensus/acs2010.RData")
 load("Data/tractData/originalTidycensus/acs2015.RData")
 load("Data/tractData/cleaned/final_condensed_msp.RData")
 load("Data/tractData/cleaned/final_condensed.RData")
-load("Data/tractData/originalTidycensus/dicennial2010.RData")
 ```
 
 ## Create organized table of 2010 census tract information
 
-```{r}
-tract2010 <- dicennial2010 %>%
-  left_join(acs2010, by = c("tract", "county", "GEOID"))
-```
 
 ## Methods for defining gentrifiable tracts
 
@@ -51,17 +46,6 @@ final_condensed_msp <- final_condensed_msp %>%
          Ding = case_when(medianIncome_2010 > cityMedInc ~ 0, 
                           TRUE ~ 1)) %>%
   select(-cityMedInc)
-```
-
-
-```{r, eval=FALSE}
-gentDing <- tract2010 %>%
-  filter(county %in% c("Hennepin", "Ramsey")) %>%
-  group_by(county) %>%
-  mutate(countyAvgInc = weighted.mean(medianIncome, TotalPopRace), 
-         Ding = case_when(medianIncome > countyAvgInc ~ 0, 
-                          TRUE ~ 1)) %>%
-  select(-countyAvgInc)
 ```
 
 Professor Lance Freeman (2005): all three measurements below must be met:
@@ -82,71 +66,36 @@ final_condensed_msp <- final_condensed_msp %>%
                              TRUE ~ 0))
 ```
 
-
-```{r, eval=FALSE}
-# find metro area mean income
-tract2010 %>%
-  st_drop_geometry() %>%
-  summarize(meanMetroInc = weighted.mean(medianIncome, TotalPopRace, na.rm = TRUE))
-
-# find average amount of housing built in the last twenty years and identify gentrifiable tracts accordingly
-gentFreeman <- tract2010 %>%
-  filter(county %in% c("Hennepin", "Ramsey")) %>%
-  mutate(built1980to2004 = (built2000to2004 + built1990to1999 + built1980to1989)  / totalStructure, 
-         medianRecHome = weighted.mean(built1980to2004, totalStructure, na.rm = TRUE), 
-         freeman = case_when(medianIncome <= 35167.87 & built1980to2004 <= medianRecHome ~ 1, 
-                             TRUE ~ 0)) %>%
-  select(freeman, tract) %>%
-  st_drop_geometry()
-```
-
 Professor Lisa Bates (2013): census tracts must meet at least 3/4 of the criteria \
 - a higher percentage of renters than the citywide rate \
 - a higher percentage of people of color than citywide \
 - a larger share of low-income households than the citywide rate \
 - a lower rate of residents with bachelor’s degrees than the citywide rate \
 
-**NOTE: need to get rentOccupied and ownership information and race information from acs surveys and use it here**.
-
 ```{r}
-gentBates <- tract2010 %>%
-  filter(county %in% c("Hennepin", "Ramsey")) %>%
-  group_by(county) %>%
-  mutate(CityAvgRent = weighted.mean(RentOccupied/OwnershipTotal, OwnershipTotal),
-         CityPoc = weighted.mean((TotalPopRace - PopWhiteAlone)/TotalPopRace, TotalPopRace), 
-         CityAvgInc = weighted.mean(medianIncome, TotalPopRace), 
-         CityBachelors = weighted.mean(bachelors25to64/total25to64, total25to64)) %>%
+gentrifiable <- final_condensed_msp %>%
+  group_by(city) %>%
+  mutate(cityMedInc = median(medianIncome_2010), 
+         cityBachelors = median(bachelors25to64_2010/total25to64_2010),
+         cityRenter_prop = median(tenureRented_2010/tenureTotal_2010),
+         cityPoc_prop = median(1-totalWhite_2010/totalRace_2010)) %>%
   ungroup() %>%
-  mutate(AvgRent = RentOccupied/OwnershipTotal,
-         Poc = (TotalPopRace - PopWhiteAlone)/TotalPopRace, 
-         Bachelors = bachelors25to64/total25to64, 
-         highRent = case_when(AvgRent >= CityAvgRent ~ 1, 
-                                        TRUE ~ 0), 
-         highPoc = case_when(Poc >= CityPoc ~ 1, 
-                                       TRUE ~ 0), 
-         lowInc = case_when(medianIncome <= CityAvgInc ~ 1, 
-                                      TRUE ~ 0), 
-         lowBachelors = case_when(Bachelors <= CityBachelors ~ 1, 
-                                            TRUE ~ 0), 
-         totGent = highRent + highPoc + lowInc + lowBachelors, 
-         bates = case_when(totGent >= 3 ~ 1, 
-                                     TRUE ~0)) %>%
-  select(bates, tract) %>%
-  st_drop_geometry()
+  mutate(highRenter = case_when(tenureRented_2010/tenureTotal_2010 > cityRenter_prop ~ 1, 
+                                TRUE ~ 0),
+         highPoc = case_when(1-totalWhite_2010/totalRace_2010 > cityPoc_prop ~ 1, 
+                             TRUE ~0),
+         low_income = case_when(medianIncome_2010 < cityMedInc ~ 1, 
+                             TRUE ~ 0),
+         low_bachelors = case_when(bachelors25to64_2010/total25to64_2010 < cityBachelors ~ 1, 
+                              TRUE ~ 0), 
+         Bates = case_when(highRenter + highPoc + low_income + low_bachelors >=3 ~ 1, 
+                           TRUE ~0)) %>%
+  select(-cityMedInc, -cityBachelors, -cityRenter_prop, -cityPoc_prop) %>%
+  mutate(canGent = case_when(Ding + Freeman + Bates >=2 ~ 1, 
+                            TRUE ~ 0))
 ```
 
 ## Combine methods and identify gentrifiable tracts
-
-If at least 2/3 of the Bates, Ding, and Freeman methods are met, identify the tract as "gentrifiable" in 2010. 
-```{r}
-gentrifiable <- gentDing %>%
-  left_join(gentFreeman, by = "tract") %>%
-  left_join(gentBates, by = "tract") %>%
-  mutate(canGent = as.factor(case_when(Ding+freeman + bates >=2 ~ 1, 
-                                  TRUE ~ 0))) %>%
-  filter(tract != "9800") %>%
-  mutate(tract = as.numeric(tract))
-```
 
 Create a map of the 2010 census tracts, colored by whether or not the tract can gentrify. 
 ```{r}
@@ -156,18 +105,20 @@ gentrifiable %>%
   mutate(canGent = case_when(canGent == "1" ~ "Yes", 
                              TRUE ~ "No")) %>%
   ggplot()+
-  geom_sf(aes(fill=canGent), lwd = 0.2, color = "white")+
-  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
+  geom_sf(aes(fill=canGent, color = city), lwd = 0.2)+
+  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.7)+
   theme_classic()+
-  labs(title = "Gentrifiable census tracts in Minneapolis-Saint Paul in 2010", fill = "Gentrifiable", x = "", y = "")+
-  annotate("point", x = -93.1691, y = 44.938, colour = "orange", size = 1) +
+  scale_color_manual(values = c("goldenrod", "forestgreen"))+
+  labs(title = "Gentrifiable census tracts in Minneapolis-Saint Paul city limits in 2010", fill = "Gentrifiable", x = "", y = "", color = "City")+
+  annotate("point", x = -93.1691, y = 44.938, colour = "forestgreen", size = 1) +
   theme(axis.line = element_blank(), 
         axis.text = element_blank(), 
         axis.ticks = element_blank(),
         legend.title = element_markdown(family = "mono"),
         plot.title.position = "plot", 
         plot.title = element_markdown(family = "mono", size = 10))+
-  scale_fill_pretty_d(name = "Autumn", direction = -1)
+  scale_fill_pretty_d(name = "Autumn", direction = -1)+
+  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "forestgreen")
 ```
 
 Write the gentrifiable file to the Data folder for future use. 
