@@ -25,7 +25,6 @@ library(ggtext)
 
 ```{r}
 roads <- st_read("ShpData/tl_2019_27_prisecroads")
-lakes <- st_read("ShpData/shp_water_lakes_rivers")
 load("Data/tractData/originalTidycensus/acs2010.RData")
 load("Data/tractData/cleaned/final_condensed_msp.RData")
 load("Data/tractData/cleaned/final_condensed.RData")
@@ -76,7 +75,7 @@ Professor Lisa Bates (2013): census tracts must meet at least 3/4 of the criteri
 gentrifiable <- final_condensed_msp %>%
   group_by(city) %>%
   mutate(cityMedInc = median(medianIncome_2010), 
-         cityBachelors = median(bachelors25to64_2010/total25to64_2010),
+         cityBachelors = median(bachelors25to64_2010/population_2010),
          cityRenter_prop = median(tenureRented_2010/tenureTotal_2010),
          cityPoc_prop = median(1-totalWhite_2010/totalRace_2010)) %>%
   ungroup() %>%
@@ -86,7 +85,7 @@ gentrifiable <- final_condensed_msp %>%
                              TRUE ~0),
          low_income = case_when(medianIncome_2010 < cityMedInc ~ 1, 
                              TRUE ~ 0),
-         low_bachelors = case_when(bachelors25to64_2010/total25to64_2010 < cityBachelors ~ 1, 
+         low_bachelors = case_when(bachelors25to64_2010/population_2010 < cityBachelors ~ 1, 
                               TRUE ~ 0), 
          Bates = case_when(highRenter + highPoc + low_income + low_bachelors >=3 ~ 1, 
                            TRUE ~0)) %>%
@@ -105,12 +104,12 @@ gentrifiable %>%
   mutate(canGent = case_when(canGent == "1" ~ "Yes", 
                              TRUE ~ "No")) %>%
   ggplot()+
-  geom_sf(aes(fill=canGent, color = city), lwd = 0.2)+
-  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.9)+
+  geom_sf(aes(fill=canGent, color = city), lwd = 0.4)+
+  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
   theme_classic()+
   scale_color_manual(values = c("goldenrod", "forestgreen"))+
   labs(title = "Gentrifiable census tracts in Minneapolis-Saint Paul city limits in 2010", fill = "Gentrifiable", x = "", y = "", color = "City")+
-  annotate("point", x = -93.1691, y = 44.938, colour = "forestgreen", size = 1) +
+  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
   theme(axis.line = element_blank(), 
         axis.text = element_blank(), 
         axis.ticks = element_blank(),
@@ -118,7 +117,7 @@ gentrifiable %>%
         plot.title.position = "plot", 
         plot.title = element_markdown(family = "mono", size = 10))+
   scale_fill_pretty_d(name = "Autumn", direction = -1)+
-  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "forestgreen")+
+  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
   guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
 ```
 

@@ -33,19 +33,13 @@ Freeman: both required \
 - tract experienced an increase in home values (in constant dollars).
 
 ```{r}
-final_condensed %>%
-  ggplot(aes(x=total25to64_2010, y=total25to64_2020))+
-  geom_point()
-
 #regional change in share of adults with college degrees
 final_condensed %>%
   ungroup() %>%
-  summarize(avg_propbachelors2010 = mean(bachelors25to64_2010/total25to64_2010), 
-         avg_propbachelors2020 = mean(bachelors25to64_2020/total25to64_2020), 
-         avg_change_bachelors = mean(avg_propbachelors2020 - avg_propbachelors2010, na.rm = TRUE),
-         medIncChange = quantile((medianIncome_2020 - medianIncome_2010)/medianIncome_2010, 0.67))
+  summarize(avg_propbachelors2010 = weighted.mean(bachelors25to64_2010/population_2010, population_2010), 
+         avg_propbachelors2020 = weighted.mean(bachelors25to64_2020/population_2020, population_2020), 
+         avg_change_bachelors = mean(avg_propbachelors2020 - avg_propbachelors2010, na.rm = TRUE))
 ```
-
 
 Ding: \
 - change in the share of adults with college degrees greater than the city-level change \
@@ -56,11 +50,11 @@ Ding: \
 #citywide changes needed for Ding's method
 final_condensed %>%
   group_by(county_2020) %>%
-  summarize(avg_propbachelors2010 = mean(bachelors25to64_2010/total25to64_2010, na.rm = TRUE), 
-         avg_propbachelors2020 = mean(bachelors25to64_2020/total25to64_2020), 
-         avg_change_bachelors = mean(avg_propbachelors2020 - avg_propbachelors2010, na.rm = TRUE),
+  summarize(avg_propbachelors2010 = weighted.mean(bachelors25to64_2010/population_2010, population_2010), 
+         avg_propbachelors2020 = weighted.mean(bachelors25to64_2020/total25to64_2020, population_2010), 
+         avg_change_bachelors = mean(avg_propbachelors2020 - avg_propbachelors2010),
          avg_home_value_increase = mean(medianHomeValue_2020 - medianHomeValue_2010, na.rm = TRUE),
-         avg_percent_rent_increase = mean((medContractRent_2020 - medContractRent_2010)/medContractRent_2010, na.rm =TRUE))
+         avg_percent_rent_increase = mean((medContractRent_2020 - medContractRent_2010)/medContractRent_2010, na.rm = TRUE))
 ```
 
 Bates methodology was too complex for the data provided and the purpose of this project, so for a third method I focused on median income increase. If the tract experienced an increase in median income greater than 67th quantile of the region, I denoted the tract to have gentrified for this method.
