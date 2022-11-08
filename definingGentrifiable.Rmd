@@ -25,8 +25,8 @@ library(ggtext)
 
 ```{r}
 roads <- st_read("ShpData/tl_2019_27_prisecroads")
+lakes <- st_read("ShpData/shp_water_lakes_rivers")
 load("Data/tractData/originalTidycensus/acs2010.RData")
-load("Data/tractData/originalTidycensus/acs2015.RData")
 load("Data/tractData/cleaned/final_condensed_msp.RData")
 load("Data/tractData/cleaned/final_condensed.RData")
 ```
@@ -106,7 +106,7 @@ gentrifiable %>%
                              TRUE ~ "No")) %>%
   ggplot()+
   geom_sf(aes(fill=canGent, color = city), lwd = 0.2)+
-  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.7)+
+  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.9)+
   theme_classic()+
   scale_color_manual(values = c("goldenrod", "forestgreen"))+
   labs(title = "Gentrifiable census tracts in Minneapolis-Saint Paul city limits in 2010", fill = "Gentrifiable", x = "", y = "", color = "City")+
@@ -118,12 +118,14 @@ gentrifiable %>%
         plot.title.position = "plot", 
         plot.title = element_markdown(family = "mono", size = 10))+
   scale_fill_pretty_d(name = "Autumn", direction = -1)+
-  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "forestgreen")
+  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "forestgreen")+
+  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
 ```
 
 Write the gentrifiable file to the Data folder for future use. 
+
 ```{r,eval=FALSE}
-save(gentrifiable, file = 'Data/gentrifiable.RData')
+save(gentrifiable, file = 'Data/tractData/cleaned/gentrifiable.RData')
 ```
 
 

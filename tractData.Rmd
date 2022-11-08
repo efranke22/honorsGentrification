@@ -36,7 +36,7 @@ acsvariables2010 <- load_variables(year = 2010, dataset = "acs5")
 
 # Select variables of interest from 2010 ACS
 acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c(	
-"B01003_001", "B06011_001", "B19313_001", "B23006_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_001", "B02001_002"), output = 'wide') %>%
+"B01003_001", "B06011_001", "B19313_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_001", "B02001_002", "B06001_005", "B06001_006", "B06001_007", "B06001_008", "B06001_009", "B06001_010"), output = 'wide') %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey"))%>%
                mutate(tract = word(NAME, 3),
                       tract = str_remove(tract, ","),
@@ -46,7 +46,6 @@ acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c
                       "medianIncome" = "B06011_001E", 
                       "aggregateIncome" = "B19313_001E", 
                       "bachelors25to64" = "B23006_023E",
-                      "total25to64" = "B23006_001E", 
                       "medYrStructureBuilt" = "B25035_001E", 
                       "totalStructure" = "B25034_001E", 
                       "builtSince2005" = "B25034_002E", 
@@ -65,11 +64,16 @@ acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c
                       "tenureRented" = "B25003_003E",
                       "totalRace" = "B02001_001E", 
                       "totalWhite" = "B02001_002E",
+                      "pop25to34" = "B06001_005E",
+                      "pop35to44" = "B06001_006E",
+                      "pop45to54" = "B06001_007E",
+                      "pop55to59" = "B06001_008E",
+                      "pop60to61" = "B06001_009E",
+                      "pop62to64" = "B06001_010E",
                       "populationMoe" = "B01003_001M",
                       "medIncMoe" = "B06011_001M", 
                       "aggIncMoe" = "B19313_001M", 
                       "bachelors25to64Moe" = "B23006_023M",
-                      "total25to64Moe" = "B23006_001M", 
                       "medYrStructureBuiltMoe" = "B25035_001M", 
                       "totalStructureMoe" = "B25034_001M", 
                       "builtSince2005Moe" = "B25034_002M", 
@@ -89,7 +93,15 @@ acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c
                       "tenureOwnedMoe" = "B25003_002M", 
                       "tenureRentedMoe" = "B25003_003M", 
                       "totalRaceMoe" = "B02001_001M", 
-                      "totalWhiteMoe" = "B02001_002M")
+                      "totalWhiteMoe" = "B02001_002M", 
+                      "pop25to34Moe" = "B06001_005M",
+                      "pop35to44Moe" = "B06001_006M",
+                      "pop45to54Moe" = "B06001_007M",
+                      "pop55to59Moe" = "B06001_008M",
+                      "pop60to61Moe" = "B06001_009M",
+                      "pop62to64Moe" = "B06001_010M") %>%
+  mutate(total25to64 = pop25to34 + pop35to44 + pop45to54 + pop55to59 + pop60to61 + pop62to64) %>%
+  select(-pop25to34, -pop35to44, -pop45to54, -pop55to59, -pop60to61, -pop62to64, -pop25to34Moe, -pop35to44Moe, -pop45to54Moe, -pop55to59Moe, -pop60to61Moe, -pop62to64Moe)
 ```
 
 Finally, we can do the same thing for the 2020 ACS. There is a decennial census for 2020 but the variables we selected from 2010 are not yet included in that dataset, so I just stuck with the ACS.
@@ -97,7 +109,7 @@ Finally, we can do the same thing for the 2020 ACS. There is a decennial census 
 ```{r}
 # Select variables of interest from 2020 ACS
 acs2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c(	
-"B01003_001", "B06011_001", "B19313_001", "B23006_001", "B23006_023", "B25058_001", "B25064_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_001", "B02001_002"), output = "wide") %>%
+"B01003_001", "B06011_001", "B19313_001", "B23006_023", "B25058_001", "B25064_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_001", "B02001_002", "B06001_005", "B06001_006", "B06001_007", "B06001_008", "B06001_009", "B06001_010"), output = "wide") %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey"))%>%
                mutate(tract = word(NAME, 3),
                       tract = str_remove(tract, ","),
@@ -107,7 +119,6 @@ acs2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c
                       "medianIncome" = "B06011_001E", 
                       "aggregateIncome" = "B19313_001E", 
                       "bachelors25to64" = "B23006_023E",
-                      "total25to64" = "B23006_001E", 
                       "medContractRent" = "B25058_001E", 
                       "medGrossRent" = "B25064_001E",
                       "populationMoe" = "B01003_001M",
@@ -116,10 +127,15 @@ acs2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c
                       "tenureRented" = "B25003_003E",
                       "totalRace" = "B02001_001E", 
                       "totalWhite" = "B02001_002E",
+                      "pop25to34" = "B06001_005E",
+                      "pop35to44" = "B06001_006E",
+                      "pop45to54" = "B06001_007E",
+                      "pop55to59" = "B06001_008E",
+                      "pop60to61" = "B06001_009E",
+                      "pop62to64" = "B06001_010E",
                       "medIncMoe" = "B06011_001M", 
                       "aggIncMoe" = "B19313_001M", 
                       "bachelors25to64Moe" = "B23006_023M",
-                      "total25to64Moe" = "B23006_001M", 
                       "medContractRentMoe" = "B25058_001M", 
                       "medGrossRentMoe" = "B25064_001M", 
                       "medianHomeValue" = "B25107_001E", 
@@ -128,13 +144,20 @@ acs2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c
                       "tenureOwnedMoe" = "B25003_002M", 
                       "tenureRentedMoe" = "B25003_003M", 
                       "totalRaceMoe" = "B02001_001M", 
-                      "totalWhiteMoe" = "B02001_002M")
+                      "totalWhiteMoe" = "B02001_002M",
+                      "pop25to34Moe" = "B06001_005M",
+                      "pop35to44Moe" = "B06001_006M",
+                      "pop45to54Moe" = "B06001_007M",
+                      "pop55to59Moe" = "B06001_008M",
+                      "pop60to61Moe" = "B06001_009M",
+                      "pop62to64Moe" = "B06001_010M") %>%
+  mutate(total25to64 = pop25to34 + pop35to44 + pop45to54 + pop55to59 + pop60to61 + pop62to64) %>%
+  select(-pop25to34, -pop35to44, -pop45to54, -pop55to59, -pop60to61, -pop62to64, -pop25to34Moe, -pop35to44Moe, -pop45to54Moe, -pop55to59Moe, -pop60to61Moe, -pop62to64Moe)
 ```
 
 Write ACS and decennial files to Data folder.
 ```{r, eval=FALSE}
 save(acs2010, file = 'Data/tractData/originalTidycensus/acs2010.RData')
-save(dicennial2010, file = "Data/tractData/originalTidycensus/dicennial2010.RData")
 save(acs2020, file = "Data/tractData/originalTidycensus/acs2020.RData")
 ```
 

@@ -9,8 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This is the 3rd file in my data cleaning and exploration process. \
-Steps in this file: Identify and deal with census tracts that changed from 2010 to 2020; identify census tracts that did and did not gentrify.  \
+This is the 4th file in my data cleaning and exploration process. \
+Steps in this file: Identify census tracts that did and did not gentrify.  \
 
 ```{r}
 library(tidycensus)
@@ -18,88 +18,66 @@ library(tidyverse)
 library(survey)
 library(srvyr)
 library(sf)
-load("Data/acs2010.RData")
-load("Data/acs2020.RData")
-load("Data/gentrifiable.RData")
+load("Data/tractData/cleaned/acs2010clean.RData")
+load("Data/tractData/cleaned/acs2020clean.RData")
+load("Data/tractData/cleaned/final_condensed.RData")
+load("Data/tractData/cleaned/gentrifiable.RData")
 ```
 
 ## Methods for idenifying tracts that did gentrify
 
 The Twin Cities paper identifies three research methods of defining gentrification.
 
-Freeman: both required\
+Freeman: both required \
 - change in the share of adults with college degrees is greater than the regional change \
 - tract experienced an increase in home values (in constant dollars).
+
+```{r}
+final_condensed %>%
+  ggplot(aes(x=total25to64_2010, y=total25to64_2020))+
+  geom_point()
+
+#regional change in share of adults with college degrees
+final_condensed %>%
+  ungroup() %>%
+  summarize(avg_propbachelors2010 = mean(bachelors25to64_2010/total25to64_2010), 
+         avg_propbachelors2020 = mean(bachelors25to64_2020/total25to64_2020), 
+         avg_change_bachelors = mean(avg_propbachelors2020 - avg_propbachelors2010, na.rm = TRUE),
+         medIncChange = quantile((medianIncome_2020 - medianIncome_2010)/medianIncome_2010, 0.67))
+```
+
 
 Ding: \
 - change in the share of adults with college degrees greater than the city-level change \
 - change in median rents above the citywide change OR \
 - change in median home value greater than the citywide change. \
 
-Bostic and Martin Method 1 \
-- tract went from below 50% in median income to above 
-
-Bates methodology - complex and did not look to much further into this \
-- Groups vulnerable tracts into 3 types of housing market changes \
-  -  “Adjacent” tract: low to moderate housing values at the beginning of the study period 
-  that did not appreciate significantly during the study period (bottom three quintiles of 
-  growth) but borders tracts with high housing values. \
-  - “Accelerating” tract is one that was lower to moderate value at the beginning of the study 
-  period and had high rates of appreciation (top two quintiles of growth) between 2000 and 2015.
-  - “Appreciated” tracts are those that had low to moderate home values in 1990 but had 
-  appreciated significantly by 2015.
-  
-## Find gentrified tracts 
-
-First, calculate average levels of change according to both Freeman and Ding's methods
 ```{r}
-# in hennepin and ramsey county (separate)
-final %>%
+#citywide changes needed for Ding's method
+final_condensed %>%
   group_by(county_2020) %>%
   summarize(avg_propbachelors2010 = mean(bachelors25to64_2010/total25to64_2010, na.rm = TRUE), 
          avg_propbachelors2020 = mean(bachelors25to64_2020/total25to64_2020), 
          avg_change_bachelors = mean(avg_propbachelors2020 - avg_propbachelors2010, na.rm = TRUE),
          avg_home_value_increase = mean(medianHomeValue_2020 - medianHomeValue_2010, na.rm = TRUE),
          avg_percent_rent_increase = mean((medContractRent_2020 - medContractRent_2010)/medContractRent_2010, na.rm =TRUE))
-
-#regional bachelors increase
-final %>%
-  summarize(avg_propbachelors2010 = mean(bachelors25to64_2010/total25to64_2010, na.rm = TRUE), 
-         avg_propbachelors2020 = mean(bachelors25to64_2020/total25to64_2020), 
-         avg_change_bachelors = mean(avg_propbachelors2020 - avg_propbachelors2010, na.rm = TRUE),
-         medIncChange = quantile((medianIncome_2020 - medianIncome_2010)/medianIncome_2010, 0.6))
 ```
+
+Bates methodology was too complex for the data provided and the purpose of this project, so for a third method I focused on median income increase. If the tract experienced an increase in median income greater than 67th quantile of the region, I denoted the tract to have gentrified for this method.
+
+```{r}
+#regional change in median income
+final_condensed %>%
+  ungroup() %>%
+  summarize(medIncChange = quantile((medianIncome_2020 - medianIncome_2010)/medianIncome_2010, 0.67))
+```
+  
+## Find gentrified tracts 
 
 Second, create a final `gentrified` dataset that lists whether each or not each census tract was gentrifiable and if it did gentrify according to Ding and Freeman's methods.
 ```{r}
 gent_clean <- gentrifiable %>%
-  mutate(group = case_when(tract %in% c(249.01, 249.02) ~ "a", 
-                           tract %in% c(1023.00, 1029.00) ~ "b",
-                           tract %in% c(408.02, 408.03) ~ "c", 
-                           TRUE ~ as.character(tract))) %>%
-  group_by(group) %>% 
-  mutate(geometry = st_union(geometry)) %>% #need to fix tract names (make 249.01 and 249.02 be 249.04)
-  select(tract, county, canGent) %>%
-  mutate(tract = case_when(tract %in% c(249.01, 249.02) ~ 249.04, 
-                           tract %in% c(1023.00, 1029.00) ~ 1263.00, 
-                           tract %in% c(408.02, 408.03) ~ 408.04, 
-                           TRUE ~ tract)) %>%
-  distinct_all() %>%
-  left_join(final, by = c("tract" = "tractmod")) %>% 
-  group_by(tract, county, canGent) %>%
-  summarize(population_2010 = sum(population_2010),
-            bachelors25to64_2010 = mean(bachelors25to64_2010), 
-            total25to64_2010 = mean(total25to64_2010), 
-            bachelors25to64_2020 = mean(bachelors25to64_2020), 
-            total25to64_2020 = mean(total25to64_2020), 
-            medianHomeValue_2020 = mean(medianHomeValue_2020), 
-            medianHomeValue_2010 = mean(medianHomeValue_2010), 
-            medContractRent_2020 = mean(medContractRent_2020), 
-            medContractRent_2010 = mean(medContractRent_2010), 
-            medIncome_2010 = mean(medianIncome_2010), 
-            medIncome_2020 = mean(medianIncome_2020)) %>%
-  group_by(tract, canGent, county, population_2010) %>%
-  summarize(propbachelors2010 = bachelors25to64_2010/total25to64_2010, 
+  mutate(propbachelors2010 = bachelors25to64_2010/total25to64_2010, 
          propbachelors2020 = bachelors25to64_2020/total25to64_2020, 
          change_bachelors = propbachelors2020 - propbachelors2010,
          home_value_increase = medianHomeValue_2020 - medianHomeValue_2010,
