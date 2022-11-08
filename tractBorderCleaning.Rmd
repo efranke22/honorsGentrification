@@ -95,7 +95,6 @@ Now, make changes to the data. First, change column names of ACS datasets to inc
 ```{r}
 colnames(acs2020) <-paste(colnames(acs2020),"2020",sep="_")
 colnames(acs2010) <-paste(colnames(acs2010), "2010", sep="_")
-colnames(acs2015) <-paste(colnames(acs2015), "2015", sep="_")
 ```
  
 Clean the ACS 2020 data, creating a modified tract column that represents the original 2010 tract number for all tracts splitting into two or three tracts in 2020. Do not include tracts 9800 or 9801, which is was very unclear what happened to over the 10 year period.
@@ -214,39 +213,6 @@ acs2010clean <- acs2010 %>%
   select(GEOID_2010, population_2010, medianIncome_2010, total25to64_2010, bachelors25to64_2010, builtSince2005_2010, built2000to2004_2010, built1990to1999_2010, built1980to1989_2010, built1970to1979_2010, built1960to1969_2010, built1950to1959_2010, built1940to1949_2010, builtPre1940_2010, medContractRent_2010, medianHomeValue_2010, tenureTotal_2010, tenureOwned_2010, tenureRented_2010, totalRace_2010, totalWhite_2010, tract_2010, county_2010) %>%
   bind_rows(acs2010groups) %>%
   filter(tract_2010 != 9800.00)
-```
-
-```{r}
-acs2015groups <- acs2015 %>%
-  mutate(tract_2015 = as.numeric(tract_2015)) %>%
-  filter(tract_2015 %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03)) %>%
-  mutate(grouped = case_when(tract_2015 %in% c(249.01, 249.02) ~ 249.04, 
-                             tract_2015 %in% c(1023.00, 1029.00) ~ 1263.00,
-                             TRUE ~ 408.04), 
-         population = population_2015) %>%
-  group_by(grouped) %>%
-  summarize(population_2015 = sum(population_2015),
-            medianIncome_2015 = weighted.mean(medianIncome_2015, population),
-            total25to64_2015 = sum(total25to64_2015),
-            bachelors25to64_2015 = sum(bachelors25to64_2015),
-            medContractRent_2015 = weighted.mean(medContractRent_2015, population),
-            medianHomeValue_2015 = weighted.mean(medianHomeValue_2015, population, na.rm=TRUE), 
-            tenureTotal_2015 = sum(tenureTotal_2015), 
-            tenureOwned_2015 = sum(tenureOwned_2015),
-            tenureRented_2015 = sum(tenureRented_2015), 
-            totalRace_2015 = sum(totalRace_2015),
-            totalWhite_2015 = sum(totalWhite_2015)) %>%
-  summarize(across(where(is.double), round)) %>%
-  mutate(grouped = c(249.04, 408.04, 1263.00)) %>%
-  rename("tract_2015" = "grouped") %>%
-  mutate(county_2015 = c("Hennepin", "Ramsey", "Hennepin"))
-
-acs2015clean <- acs2015 %>%
-  mutate(tract_2015 = as.numeric(tract_2015)) %>%
-  filter(!(tract_2015 %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03))) %>%
-  select(GEOID_2015, population_2015, medianIncome_2015, total25to64_2015, bachelors25to64_2015, medContractRent_2015, medianHomeValue_2015, tenureTotal_2015, tenureOwned_2015, tenureRented_2015, totalRace_2015, totalWhite_2015, tract_2015, county_2015) %>%
-  bind_rows(acs2015groups) %>%
-  filter(tract_2015 != 9800.00)
 ```
 
 Finally, join the 2010 and 2020 data together.
