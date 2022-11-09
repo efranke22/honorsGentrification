@@ -23,6 +23,7 @@ load("Data/tractData/cleaned/acs2020clean.RData")
 load("Data/tractData/cleaned/final_condensed.RData")
 load("Data/tractData/cleaned/final_condensed_msp.RData")
 load("Data/tractData/cleaned/gentrifiable.RData")
+roads <- st_read("ShpData/tl_2019_27_prisecroads")
 ```
 
 ## Methods for idenifying tracts that did gentrify
@@ -107,6 +108,36 @@ Understand the distribution of gentrified tracts for the different methods.
 gent_clean %>%
   count(freeman, ding, pew, twoGentrified)
 ```
+
+Create map of gentrified tracts
+
+```{r}
+roads_sub <- st_crop(roads,st_bbox(gentrifiable))
+
+gent_clean %>%
+  mutate(canGent_gentrified = as.factor(case_when(canGent_gentrified == "0" ~ "Cannot gentrify", 
+                                        canGent_gentrified == "1" ~ "Could, but didn't gentrify",
+                                        TRUE ~ "Gentrified"))) %>%
+  ggplot()+
+  geom_sf(aes(fill=canGent_gentrified, color = city), lwd = 0.4)+
+  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
+  theme_classic()+
+  scale_color_manual(values = c("goldenrod", "forestgreen"))+
+  labs(title = "Gentrifiable census tracts in Minneapolis-Saint Paul city limits in 2010", fill = "Gentrifiable", x = "", y = "", color = "City")+
+  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
+  theme(axis.line = element_blank(), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(),
+        legend.title = element_markdown(family = "mono"),
+        plot.title.position = "plot", 
+        plot.title = element_markdown(family = "mono", size = 10))+
+  #scale_fill_pretty_d(name = "Autumn", direction = -1)+
+  scale_fill_manual(values = c("#1B3A54", "#800000", "#CD0F75"))+
+  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
+  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
+```
+
+
 
 ```{r, eval=FALSE}
 save(gent_clean, file = 'Data/tractData/cleaned/gent_clean.RData')
