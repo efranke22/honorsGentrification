@@ -21,6 +21,7 @@ library(sf)
 load("Data/tractData/cleaned/acs2010clean.RData")
 load("Data/tractData/cleaned/acs2020clean.RData")
 load("Data/tractData/cleaned/final_condensed.RData")
+load("Data/tractData/cleaned/final_condensed_msp.RData")
 load("Data/tractData/cleaned/gentrifiable.RData")
 ```
 
@@ -48,7 +49,7 @@ Ding: \
 
 ```{r}
 #citywide changes needed for Ding's method
-final_condensed %>%
+final_condensed_msp %>%
   group_by(county_2020) %>%
   summarize(avg_propbachelors2010 = weighted.mean(bachelors25to64_2010/population_2010, population_2010), 
          avg_propbachelors2020 = weighted.mean(bachelors25to64_2020/population_2020, population_2020),
@@ -57,13 +58,14 @@ final_condensed %>%
          avg_percent_rent_increase = mean((medContractRent_2020 - medContractRent_2010)/medContractRent_2010, na.rm = TRUE))
 ```
 
-Bates methodology was too complex for the data provided and the purpose of this project, so for a third method I looked to a report from the PEW charitable trusts. They defined a tract to have gentrified if the tract’s median income had to have increased at least 10 percent in inflation-adjusted dollars from 2000 to 2014 and and its 2014 median household income figure had to exceed the citywide median of $37,460.
+Bates methodology was too complex for the data provided and the purpose of this project, so for a third method I looked to a report from the PEW charitable trusts. They defined a tract to have gentrified if the tract’s median income had to have increased at least 10 percent in inflation-adjusted dollars from 2000 to 2014 and and its 2014 median household income figure had to exceed the citywide median of $37,460.https://www.pewtrusts.org/-/media/assets/2016/05/philadelphias_changing_neighborhoods.pdf
 
 ```{r}
 #regional change in median income
-final_condensed %>%
+final_condensed_msp %>%
   ungroup() %>%
-  summarize(medIncChange = quantile((medianIncome_2020 - medianIncome_2010)/medianIncome_2010, 0.6))
+  group_by(county_2020) %>%
+  summarize(medianInc = median(medianIncome_2020))
 ```
   
 ## Find gentrified tracts 
@@ -79,36 +81,34 @@ gent_clean <- gentrifiable %>%
          home_value_increase = medianHomeValue_2020 - home_value_2010_in_2020dollars,
          percent_rent_increase = (medContractRent_2020 - medContractRent_2010)/(medContractRent_2010),
          percent_homevalue_increase = (medianHomeValue_2020 - medianHomeValue_2010)/medianHomeValue_2010,
-         medIncIncrease = (medianIncome_2020-medianIncome_2010)/medianIncome_2010) %>%
-  mutate(freeman = as.factor(case_when(canGent == "1" & change_bachelors > 0.0286 & home_value_increase > 0 ~ 1, TRUE ~ 0)), 
-         ding = as.factor(case_when((canGent == "1" & city == "Minneapolis" & change_bachelors > 0.03448868 & 
-                                       (percent_rent_increase > 0.3471872 | percent_homevalue_increase >0.13935736)) |
-                                      (canGent == "1" & city == "Saint Paul" & change_bachelors > 0.01434438 &
-                                         (percent_rent_increase > 0.3702282| percent_homevalue_increase > 0.06747509)) ~ 1, 
+         medianIncome_2020_in_2010dollars = medianIncome_2020 * 0.84,
+         medianIncome2020_10perc_increase = medianIncome_2020_in_2010dollars * 1.1) %>%
+  mutate(freeman = as.factor(case_when(canGent == "1" & change_bachelors >= 0.0286 & home_value_increase >= 0 ~ 1, TRUE ~ 0)), 
+         ding = as.factor(case_when((canGent == "1" & city == "Minneapolis" & change_bachelors > 0.0394 & 
+                                       (percent_rent_increase > 0.3259 | percent_homevalue_increase >0.1687)) |
+                                      (canGent == "1" & city == "Saint Paul" & change_bachelors > 0.01955693 &
+                                         (percent_rent_increase > 0.38078| percent_homevalue_increase > 0.05902)) ~ 1, 
                           TRUE ~ 0)), 
-         erin = as.factor(case_when(canGent == "1" & medIncIncrease > 0.3967654 ~ 1, 
-                                        TRUE ~ 0)), 
-         twoGentrified = as.factor(case_when((ding == "1" & freeman == "1" & erin == "1")|
-                                   (ding == "1" & freeman == "1" & erin == "0")|
-                                      (ding == "1" & freeman == "0" & erin == "1")|
-                                   (ding == "0" & freeman == "1" & erin == "1") ~ 1, 
+         pew = as.factor(case_when((canGent == "1" & city == "Minneapolis" & medianIncome_2020 > medianIncome2020_10perc_increase & medianIncome_2020 >= 36776) | (canGent == "1" & city == "Saint Paul" & medianIncome_2020 > medianIncome2020_10perc_increase & medianIncome_2020 >= 31951) ~ 1, 
+          TRUE ~ 0)), 
+         twoGentrified = as.factor(case_when((ding == "1" & freeman == "1" & pew == "1")|
+                                   (ding == "1" & freeman == "1" & pew == "0")|
+                                      (ding == "1" & freeman == "0" & pew == "1")|
+                                   (ding == "0" & freeman == "1" & pew == "1") ~ 1, 
                                  TRUE ~ 0)), 
          canGent_gentrified = as.factor(case_when(canGent == "0" ~ "0", 
                                                   canGent == "1" & twoGentrified == "0" ~ "1", 
                                                   TRUE ~ "2")))
 ```
 
-```{r, eval=FALSE}
-save(gent_clean, file = 'Data/gent_clean.RData')
-```
-
-
-Understand what proportion of tracts that could gentrify did. 
+Understand the distribution of gentrified tracts for the different methods.
 
 ```{r}
 gent_clean %>%
-  filter(canGent == "1") %>%
-  ungroup()%>%
-  count(freeman, ding, bostic_var)
+  count(freeman, ding, pew, twoGentrified)
+```
+
+```{r, eval=FALSE}
+save(gent_clean, file = 'Data/tractData/cleaned/gent_clean.RData')
 ```
 
