@@ -108,7 +108,8 @@ Make the crime coordinates sf geometry points of the right coordinate system.
 ```{r}
 minn_sf <- minneapolisCrime %>% 
   filter(Lat >0, Long <0) %>%
-  st_as_sf(coords = c("Long", "Lat"), crs = "NAD83")
+  st_as_sf(coords = c("Long", "Lat"), crs = "NAD83") %>%
+  distinct()
 ```
 
 Aggregate the points by census tract. 
@@ -134,6 +135,9 @@ tract_aggregated <- st_join(gent_clean, crimes_per_tract, left = FALSE) %>%
          crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-23", "24-36", "37-52", "53-75", "75+"))) %>%
   filter(!(tract == 1055 & year == 2012 & n ==150), 
          !(tract == 1066 & year == 2012 & n ==181))
+
+tract_aggregated %>%
+  arrange(desc(crimes_per_1000))
 ```
 
 Join crime data with `gent_clean` file.
@@ -150,7 +154,6 @@ tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tractmod"]) %>%
                                    Offense %in% c("ASLT2", "CSCR", "DASTR", "DASLT2", "ASLT3", "ASLT4", "DASLT3", "MURDR", "ASLT1", "DASLT1") ~ "Assault", 
                                    TRUE ~ "Other"))
 ```
-
 
 ```{r,eval=FALSE}
 save(tract_aggregated, file = 'Data/CrimeCleaned/tract_aggregated_minneapolis.RData')
