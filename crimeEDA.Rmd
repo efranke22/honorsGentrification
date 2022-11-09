@@ -29,6 +29,15 @@ load('Data/gent_clean.RData')
 Explore year distribution of crimes in Minneapolis.
 
 ```{r}
+tract_aggregated %>%
+  ggplot()+
+  geom_sf(aes(fill = crimes_per_1000d))+
+  theme_classic()+
+  scale_fill_natparks_d(name = "Olympic")
+```
+
+
+```{r}
 ggplot() +
   geom_sf(data=tract_aggregated %>% filter(year <= 2016), aes(fill=crimes_per_1000d), lwd=0.4, alpha =0.8)+
   theme_classic()+

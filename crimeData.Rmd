@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This is the 4th file in my data cleaning and exploration process. \
+This is the 5th file in my data cleaning and exploration process. \
 Steps in this file: Download and clean Minneapolis and Saint Paul crime data.  \
 
 ## Data and library loading
@@ -19,7 +19,12 @@ Steps in this file: Download and clean Minneapolis and Saint Paul crime data.  \
 library(tidyverse)
 library(sf)
 library(stringr)
+library(NatParksPalettes)
+```
 
+Create Minneapolis crime file from 2010 to September 2022.
+
+```{r, eval=FALSE}
 # Minneapolis crime 
 minneapolisCrime2010 <- read_csv("Data/Crime/Police_Incidents_2010.csv") %>%
   select(ReportedDate, Offense, Description, Lat, Long)
@@ -75,34 +80,31 @@ minneapolisCrime2022 <- read_csv("Data/Crime/Police_Incidents_2022.csv") %>%
          "Lat" = "centerLat", 
          "Long" = "centerLong")
 
-# Saint Paul crime 
-saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report.csv")
-
-# Gentrification Information
-load('Data/gent_clean.RData')
-```
-
-## Minneapolis crime data
-
-First, combine and organize crime files. 
-
-```{r}
 minneapolisCrime <- bind_rows(minneapolisCrime2010, minneapolisCrime2011, minneapolisCrime2012, minneapolisCrime2013, minneapolisCrime2014, minneapolisCrime2015, minneapolisCrime2016, minneapolisCrime2017, minneapolisCrime2018a, minneapolisCrime2018b, minneapolisCrime2019, minneapolisCrime2020, minneapolisCrime2021, minneapolisCrime2022) %>%
   mutate(year = as.numeric(substr(ReportedDate, 1, 4)), 
          date = as.Date.character(ReportedDate, format = "%Y/%m/%d"))
-```
 
-```{r, eval=FALSE}
 save(minneapolisCrime, file = "Data/Crime/minneapolisCrime.RData")
 ```
 
+Load Saint Paul crime, Minneapolis crime, and gentrification file.
 ```{r}
+# Saint Paul crime 
+saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report.csv")
+
+# Minneapolis Crime
 load("Data/Crime/minneapolisCrime.RData")
+
+# Gentrification Information
+load('Data/tractData/cleaned/gent_clean.RData')
 ```
 
-I want to aggregate these points by census tract based on latitude and longitude and plot them using the final census tracts from the cleaned gentrified file. 
+## Clean Minneapolis crime data
+
+Goal: aggregate these points by census tract based on latitude and longitude and plot them using the final census tracts from the cleaned gentrification file. 
 
 Make the crime coordinates sf geometry points of the right coordinate system.
+
 ```{r}
 minn_sf <- minneapolisCrime %>% 
   filter(Lat >0, Long <0) %>%
@@ -110,19 +112,20 @@ minn_sf <- minneapolisCrime %>%
 ```
 
 Aggregate the points by census tract. 
+
 ```{r}
-tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tract"]) 
+tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tractmod"]) 
 plot(tract_points$geometry, pch=21, cex=0.7, col="purple", bg="gray80")
 plot(gent_clean$geometry, border="gray20", col=NA, add=T)
 
 crimes_per_tract <- tract_points %>%
-  group_by(tract, year) %>%
+  group_by(tractmod, year) %>%
   count()
 
 tract_aggregated <- st_join(gent_clean, crimes_per_tract, left = FALSE) %>%
-  select(-tract.y) %>%
-  rename("tract" = "tract.x") %>%
-  mutate(crimes_per_1000 = (n/population_2010) * 1000, 
+  select(-tractmod.y) %>%
+  rename("tract" = "tractmod.x") %>%
+  mutate(crimes_per_1000 = (n/population_2020) * 1000, 
          crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=23 ~ "0-23", 
                                       crimes_per_1000 >23 & crimes_per_1000 <= 36 ~ "24-36", 
                                       crimes_per_1000 > 36 & crimes_per_1000 <= 52 ~ "37-52", 
@@ -136,63 +139,71 @@ tract_aggregated <- st_join(gent_clean, crimes_per_tract, left = FALSE) %>%
 Join crime data with `gent_clean` file.
 
 ```{r}
-tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tract"]) %>%
+tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tractmod"]) %>%
   st_join(gent_clean) %>%
-  select(-tract.y) %>%
-  rename("tract" = "tract.x")
+  select(-tractmod.y) %>%
+  rename("tract" = "tractmod.x") %>%
+  mutate(offense_group = case_when(Offense %in% c("THEFT", "BIKETF", "TFPER", "THFTSW", "PKGTHEFT") ~ "Theft", 
+                                   Offense %in% c("TFMV", "AUTOTH", "TMVP", "CARJCK", "MVTHFT") ~ "Auto Theft",
+                                   Offense == "BURGD" ~ "Home Burglary", 
+                                   Offense %in% c("BURGB", "ROBBIZ", "TBLDG") ~ "Business Burglary", 
+                                   Offense %in% c("ASLT2", "CSCR", "DASTR", "DASLT2", "ASLT3", "ASLT4", "DASLT3", "MURDR", "ASLT1", "DASLT1") ~ "Assault", 
+                                   TRUE ~ "Other"))
 ```
 
 
 ```{r,eval=FALSE}
-save(tract_aggregated, file = 'Data/tract_aggregated.RData')
-save(tract_points, file = "Data/tract_points.RData")
+save(tract_aggregated, file = 'Data/CrimeCleaned/tract_aggregated_minneapolis.RData')
+save(tract_points, file = "Data/CrimeCleaned/tract_points_minneapolis.RData")
 ```
 
-Specifically look at violent crimes
+### Violent crimes in Minneapolis
 
 ```{r}
 crimes_per_tract_violent <- tract_points %>%
-  mutate(offense_group = case_when(Offense %in% c("THEFT", "BIKETF", "TFPER", "THFTSW", "PKGTHEFT") ~ "Theft", 
-                                   Offense %in% c("TFMV", "AUTOTH", "TMVP", "CARJCK", "MVTHFT") ~ "Auto Theft",
-                                   Offense == "BURGD" ~ "Home Burglary", 
-                                   Offense %in% c("BURGB", "ROBBIZ", "TBLDG") ~ "Business Burglary", 
-                                   Offense %in% c("ASLT2", "CSCR", "DASTR", "DASLT2", "ASLT3", "ASLT4", "DASLT3", "MURDR", "ASLT1", "DASLT1") ~ "Assault", 
-                                   TRUE ~ "Other")) %>%
   filter(offense_group == "Assault") %>%
   group_by(tract, year) %>%
   count()
 
-tract_aggregated_violent <- st_join(gent_clean, crimes_per_tract_violent, left = FALSE) %>%
-  select(-tract.y) %>%
-  rename("tract" = "tract.x") %>%
-  mutate(crimes_per_1000 = (n/population_2010) * 1000)
+tract_aggregated_violent <- st_join(gent_clean, crimes_per_tract_violent %>% rename("tractmod" = "tract"), left = FALSE) %>%
+  select(-tractmod.y) %>%
+  rename("tractmod" = "tractmod.x") %>%
+  mutate(crimes_per_1000 = (n/population_2020) * 1000)
 ```
 
-Specifically look at thefts
+### Thefts in Minneapolis
 
 ```{r}
 crimes_per_tract_theft <- tract_points %>%
-  mutate(offense_group = case_when(Offense %in% c("THEFT", "BIKETF", "TFPER", "THFTSW", "PKGTHEFT") ~ "Theft", 
-                                   Offense %in% c("TFMV", "AUTOTH", "TMVP", "CARJCK", "MVTHFT") ~ "Auto Theft",
-                                   Offense == "BURGD" ~ "Home Burglary", 
-                                   Offense %in% c("BURGB", "ROBBIZ", "TBLDG") ~ "Business Burglary", 
-                                   Offense %in% c("ASLT2", "CSCR", "DASTR", "DASLT2", "ASLT3", "ASLT4", "DASLT3", "MURDR", "ASLT1", "DASLT1") ~ "Assault", 
-                                   TRUE ~ "Other")) %>%
-  filter(offense_group %in% c("Theft", "Auto Theft")) %>%
+  filter(offense_group == "Theft") %>%
   group_by(tract, year) %>%
   count()
 
-tract_aggregated_theft <- st_join(gent_clean, crimes_per_tract_theft, left = FALSE) %>%
-  select(-tract.y) %>%
-  rename("tract" = "tract.x") %>%
-  mutate(crimes_per_1000 = (n/population_2010) * 1000) %>%
-  filter(!(tract == 1055 & year == 2012 & n ==104), 
-         !(tract == 1066 & year == 2012 & n ==110))
+tract_aggregated_theft <- st_join(gent_clean, crimes_per_tract_theft %>% rename("tractmod" = "tract"), left = FALSE) %>%
+  select(-tractmod.y) %>%
+  rename("tractmod" = "tractmod.x") %>%
+  mutate(crimes_per_1000 = (n/population_2020) * 1000)
 ```
 
+### Auto Thefts in Minneapolis
+
+```{r}
+crimes_per_tract_autotheft <- tract_points %>%
+  filter(offense_group == "Auto Theft") %>%
+  group_by(tract, year) %>%
+  count()
+
+tract_aggregated_autotheft <- st_join(gent_clean, crimes_per_tract_theft %>% rename("tractmod" = "tract"), left = FALSE) %>%
+  select(-tractmod.y) %>%
+  rename("tractmod" = "tractmod.x") %>%
+  mutate(crimes_per_1000 = (n/population_2020) * 1000)
+```
+
+
 ```{r, eval=FALSE}
-save(tract_aggregated_violent, file = "Data/Crime/tract_aggregated_violent.RData")
-save(tract_aggregated_theft, file = "Data/Crime/tract_aggregated_theft.RData")
+save(tract_aggregated_violent, file = "Data/CrimeCleaned/tract_aggregated_minneapolis_violent.RData")
+save(tract_aggregated_theft, file = "Data/CrimeCleaned/tract_aggregated_minneapolis_theft.RData")
+save(tract_aggregated_autotheft, file = "Data/CrimeCleaned/tract_aggregated_minneapolis_autotheft.RData")
 ```
 
 
