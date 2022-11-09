@@ -123,7 +123,7 @@ gent_clean %>%
   geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
   theme_classic()+
   scale_color_manual(values = c("goldenrod", "forestgreen"))+
-  labs(title = "Gentrifiable census tracts in Minneapolis-Saint Paul city limits in 2010", fill = "Gentrifiable", x = "", y = "", color = "City")+
+  labs(title = "MSP census tract gentrification status in 2020", fill = "Gentrifiable", x = "", y = "", color = "City")+
   annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
   theme(axis.line = element_blank(), 
         axis.text = element_blank(), 
@@ -137,6 +137,75 @@ gent_clean %>%
   guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
 ```
 
+Additional maps for each method:
+
+```{r}
+gent_clean %>%
+  mutate(canGent_gentrified = as.factor(case_when(canGent == "0" ~ "Cannot gentrify", 
+                                        canGent == "1" & ding == "0" ~ "Could, but didn't gentrify",
+                                        canGent == "1" & ding == "1" ~ "Gentrified"))) %>%
+  ggplot()+
+  geom_sf(aes(fill=canGent_gentrified, color = city), lwd = 0.4)+
+  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
+  theme_classic()+
+  scale_color_manual(values = c("goldenrod", "forestgreen"))+
+  labs(title = "MSP census tract gentrification status in 2020 as denoted by Lei Ding", fill = "Gentrifiable", x = "", y = "", color = "City")+
+  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
+  theme(axis.line = element_blank(), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(),
+        legend.title = element_markdown(family = "mono"),
+        plot.title.position = "plot", 
+        plot.title = element_markdown(family = "mono", size = 10))+
+  #scale_fill_pretty_d(name = "Autumn", direction = -1)+
+  scale_fill_manual(values = c("#1B3A54", "#800000", "#CD0F75"))+
+  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
+  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
+
+gent_clean %>%
+  mutate(canGent_gentrified = as.factor(case_when(canGent == "0" ~ "Cannot gentrify", 
+                                        canGent == "1" & freeman == "0" ~ "Could, but didn't gentrify",
+                                        canGent == "1" & freeman == "1" ~ "Gentrified"))) %>%
+  ggplot()+
+  geom_sf(aes(fill=canGent_gentrified, color = city), lwd = 0.4)+
+  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
+  theme_classic()+
+  scale_color_manual(values = c("goldenrod", "forestgreen"))+
+  labs(title = "MSP census tract gentrification status in 2020 as denoted by Lance Freeman", fill = "Gentrifiable", x = "", y = "", color = "City")+
+  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
+  theme(axis.line = element_blank(), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(),
+        legend.title = element_markdown(family = "mono"),
+        plot.title.position = "plot", 
+        plot.title = element_markdown(family = "mono", size = 10))+
+  #scale_fill_pretty_d(name = "Autumn", direction = -1)+
+  scale_fill_manual(values = c("#1B3A54", "#800000", "#CD0F75"))+
+  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
+  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
+
+gent_clean %>%
+  mutate(canGent_gentrified = as.factor(case_when(canGent == "0" ~ "Cannot gentrify", 
+                                        canGent == "1" & pew == "0" ~ "Could, but didn't gentrify",
+                                        canGent == "1" & pew == "1" ~ "Gentrified"))) %>%
+  ggplot()+
+  geom_sf(aes(fill=canGent_gentrified, color = city), lwd = 0.4)+
+  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
+  theme_classic()+
+  scale_color_manual(values = c("goldenrod", "forestgreen"))+
+  labs(title = "MSP census tract gentrification status in 2020 as denoted \nby the PEW Charitiable Trusts", fill = "Gentrifiable", x = "", y = "", color = "City")+
+  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
+  theme(axis.line = element_blank(), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(),
+        legend.title = element_markdown(family = "mono"),
+        plot.title.position = "plot", 
+        plot.title = element_markdown(family = "mono", size = 10))+
+  #scale_fill_pretty_d(name = "Autumn", direction = -1)+
+  scale_fill_manual(values = c("#1B3A54", "#800000", "#CD0F75"))+
+  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
+  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
+```
 
 
 ```{r, eval=FALSE}
