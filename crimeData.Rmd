@@ -135,9 +135,6 @@ tract_aggregated <- st_join(gent_clean, crimes_per_tract, left = FALSE) %>%
          crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-23", "24-36", "37-52", "53-75", "75+"))) %>%
   filter(!(tract == 1055 & year == 2012 & n ==150), 
          !(tract == 1066 & year == 2012 & n ==181))
-
-tract_aggregated %>%
-  arrange(desc(crimes_per_1000))
 ```
 
 Join crime data with `gent_clean` file.
@@ -209,7 +206,6 @@ save(tract_aggregated_theft, file = "Data/CrimeCleaned/tract_aggregated_minneapo
 save(tract_aggregated_autotheft, file = "Data/CrimeCleaned/tract_aggregated_minneapolis_autotheft.RData")
 ```
 
-
 ## Cleaning saint paul crime data
 
 Unlike the Minneapolis crime data, the Saint Paul data did not come with a latitude and longitude location of each crime. However, it did come with a rough block address or street intersection. Using GIS Pro we were able to get a rough latitude and longitude of each crime and then follow the same process as the Minneapolis data.
@@ -217,6 +213,7 @@ Unlike the Minneapolis crime data, the Saint Paul data did not come with a latit
 ### Preparing the data for GIS 
 
 First, identify crimes that occurred at intersections. These will need to be treated differently than those with addresses. Use string techniques to put them in a format that GIS likes. 
+
 ```{r, eval=FALSE}
 intersections <- saintpaulcrime %>%
   select(BLOCK) %>%
@@ -250,6 +247,7 @@ write_csv(intersections_RamseyCo, "Data/Crime/intersections_RamseyCo.csv")
 ### Cleaning up GIS data 
 
 Import data and select rough intersection and coordinates.
+
 ```{r}
 intersections_ll <- read_csv("Data/Crime/intersections_RamseyCo_geocoded2.csv")
 matched_lat_lngs <- intersections_ll %>%
@@ -258,6 +256,7 @@ matched_lat_lngs <- intersections_ll %>%
 ```
 
 Create same intersection descriptions and make column `original` so we are able to join back to original data and get crime date and type. 
+
 ```{r}
 all_intersections <- saintpaulcrime %>%
   filter(str_detect(BLOCK, "&")) %>%
@@ -269,9 +268,25 @@ street_identifiers <- as.data.frame(str_split_fixed(streets2$V1, " ", 2)) %>%
   mutate(V2 = word(V2, 1)) %>% 
   rename("street" = "V1", 
          "identifier" = "V2")
-  
+
+#problem: streets have different identifiers, causing multiple crimes
+street_identifiers %>%
+  distinct() %>%
+  group_by(street) %>%
+  mutate(count = n()) %>%
+  filter(count>=2) %>%
+  arrange(desc(count), street)
+
+#best solution: take the most often identifier and remove other identifiers. This will make certain areas slightly short of crimes but prevents extreme double/triple/quadrouple counting.
+street_identifiers2 <- street_identifiers %>%
+  group_by(street) %>%
+  count(identifier) %>%
+  mutate(most_often_identifier = max(n)) %>%
+  filter(most_often_identifier == n) %>%
+  select(-n, -most_often_identifier)
+
 intersections_clean <- streets2 %>%
-  left_join(street_identifiers, by = c("V2" = "street")) %>%
+  left_join(street_identifiers2, by = c("V2" = "street")) %>%
   distinct() %>%
   mutate(V2 = paste(V2, identifier, sep= " ")) %>%
   select(-identifier) %>%
@@ -306,22 +321,158 @@ save(blocks, file = "Data/Crime/address_latlngs.RData")
 ```
 
 Load the addresses from above. Some addresses were not able to get coordinates - a large reason for this is because the data combined streets with two names (for example St Clair was STCLAIR). 
+
 ```{r}
 load("Data/Crime/address_latlngs.RData")
-
-# blocks %>%
-#   filter(is.na(latitude)) %>%
-#   mutate(BLOCK = case_when(str_detect(BLOCK, "OLDHUDSON") == TRUE ~ str_split(BLOCK, "DH"), 
-#                            TRUE ~ BLOCK))
   
-
+#address with recorded latitude and longitude (87.7%)
 address_clean <- blocks %>%
   select(-BLOCK) %>%
   mutate(year = as.numeric(substr(DATE,1, 4))) %>%
   na.omit()
+```
 
-blocks %>%
-  filter(is.na(latitude))
+Filter for addresses that did not get an identified latitude and longitude. There are 36,149 and about half can hopefully be fixed by adding a space to the two named streets.
+
+```{r}
+two_named_streets <- blocks %>%
+  filter(is.na(latitude)) %>%
+  separate(col = BLOCK, into = c("number", "street", "identifier", "direction"), sep = " ") %>%
+  mutate(street2 = case_when(str_detect(street, "OLDHUDSON") ~ "OLD HUDSON",
+                            str_detect(street, "ANNARBOR") ~ "ANN ARBOR",
+                            str_detect(street, "BARGECHANNEL") ~ "BARGE CHANNEL",
+                            str_detect(street, "BATTLECREEK") ~ "BATTLE CREEK",
+                            str_detect(street, "CESARCHAVEZ") ~ "CESAR CHAVEZ",
+                            str_detect(street, "CHEROKEEHTS") ~ "CHEROKEE HTS", 
+                            str_detect(street, "CROCUSHILL") ~ "CROCUS HILL", 
+                            str_detect(street, "CROSBYFARM") ~ "CROSBY FARM",
+                            str_detect(street, "CROSBYLAKE") ~ "CROSBY LAKE",
+                            str_detect(street, "DANPATCH") ~ "DAN PATCH", 
+                            str_detect(street, "DOROTHYDAY") ~ "DOROTHY DAY",
+                            str_detect(street, "DRJUSTUSOHAGE") ~ "DR JUSTUS OHAGE", 
+                            str_detect(street, "EDGCUMBE") ~ "EDGECUMBE", 
+                            str_detect(street, "ENERGYPARK") ~ "ENERGY PARK",
+                            str_detect(street, "GRANDHILL") ~ "GRAND HILL",
+                            str_detect(street, "HARDENBERGH") ~ "HARDEN BERGH", 
+                            str_detect(street, "HARRIETISLAND") ~ "HARRIET ISLAND", 
+                            str_detect(street, "HIDDENFALLS") ~ "HIDDEN FALLS",
+                            str_detect(street, "HUNTINGVALLEY") ~ "HUNTING VALLEY", 
+                            str_detect(street, "IVANWAY") ~ "IVAN WAY", 
+                            str_detect(street, "JEFFERSONCOMMONS") ~ "JEFFERSON COMMONS",
+                            str_detect(street, "JOHNIRELAND") ~ "JOHN IRELAND", 
+                            str_detect(street, "LAFAYETTEFRONTAGE") ~ "LAFAYETTE FRONTAGE",
+                            str_detect(street, "LARRYHO") ~ "LARRY HO", 
+                            str_detect(street, "LOWERAFTON") ~ "LOWER AFTON", 
+                            str_detect(street, "LOWERSTDENNIS") ~ "LOWER ST DENNIS", 
+                            str_detect(street, "LYNNHURST") ~ "LYNN HURST", 
+                            str_detect(street, "MARTINLUTHERKING") ~ "MARTIN LUTHER KING", 
+                            str_detect(street, "MISSISSIPPIRIVER") ~ "MISSISSIPPI RIVER", 
+                            str_detect(street, "MORNINGSIDE") ~ "MORNING SIDE",
+                            str_detect(street, "MTAIRY") ~ "MT AIRY", 
+                            str_detect(street, "MTCURVE") ~ "MT CURVE",
+                            str_detect(street, "OLDSIXTH") ~ "OLD SIXTH",
+                            str_detect(street, "OTTOHUMMER") ~ "OTTO HUMMER",
+                            str_detect(street, "PIERCEBUTLER") ~ "PIERCE BUTLER",
+                            str_detect(street, "PIGSEYELAKE") ~ "PIGSEYE LAKE",
+                            str_detect(street, "PTDOUGLAS") ~ "PT DOUGLAS",
+                            str_detect(street, "RIVERPARK") ~ "RIVER PARK",
+                            str_detect(street, "SPRUCETREE") ~ "SPRUCE TREE",
+                            str_detect(street, "STANTHONY") ~ "ST ANTHONY",
+                            str_detect(street, "STALBANS") ~ "ST ALBANS",
+                            str_detect(street, "STCLAIR") ~ "ST CLAIR",
+                            str_detect(street, "STDENNIS") ~ "ST DENNIS",
+                            str_detect(street, "STPAUL") ~ "ST PAUL",
+                            str_detect(street, "STPETER") ~ "ST PETER",
+                            str_detect(street, "TROUTBROOK") ~ "TROUT BROOK",
+                            str_detect(street, "UPPERAFTON") ~ "UPPER AFTON",
+                            str_detect(street, "UPPERSTDENNIS") ~ "UPPER ST DENNIS",
+                            str_detect(street, "VANBUREN") ~ "VAN BUREN",
+                            str_detect(street, "VANSLYKE") ~ "VAN SLYKE",
+                            str_detect(street, "WHEELOCKRIDGE") ~ "WHEELOCK RIDGE",
+                            str_detect(street, "WHITEBEAR") ~ "WHITE BEAR",
+                            str_detect(street, "WILLIAMTELL") ~ "WILLIAM TELL",
+                            str_detect(street, "YACHTCLUB") ~ "YACHT CLUB", 
+                            TRUE ~ street)) %>%
+  filter(street2 != street) %>%
+  mutate(identifier = case_when(is.na(identifier) ~ "", 
+                                TRUE ~ identifier), 
+         direction = case_when(is.na(direction) ~ "", 
+                               TRUE ~ direction)) %>%
+  mutate(new_address = paste(number, street2, identifier, direction, sep = " "), 
+         new_address = str_trim(new_address, side = c("right")))
+```
+
+Run the two named streets through the geocoder. This gets us almost 16,000 of the 36,000+ missing crimes.
+
+```{r, eval=FALSE}
+blocks_two_name <- two_named_streets %>%
+  tidygeocoder::geocode(new_address, method = 'osm', lat = latitude, long = longitude)
+
+blocks_two_name <- blocks_two_name %>%
+  filter(!is.na(`latitude...11`)) %>%
+  select(-number, -street, -identifier, -direction, -`latitude...7`, -`longitude...8`, -street2) %>%
+  rename("latitude" = "latitude...11", 
+         "longitude" = "longitude...12")
+
+save(blocks_two_name, file = "Data/CrimeCleaned/blocks_two_name.RData")
+```
+
+For street names with a large amount of data points that are not two worded streets, identify them and try to figure out what is wrong. Not all of these can be fixed, but I tried to find a few.
+
+```{r}
+# identify more common problems (some of these are not easily fixable or already fixed)
+ blocks %>%
+  filter(is.na(latitude)) %>%
+  separate(col = BLOCK, into = c("number", "street", "identifier", "direction"), sep = " ") %>%
+  count(street, identifier) %>%
+  arrange(desc(n)) %>%
+  head(60)
+```
+
+Fix some common mistakes. This gets us about 6,600 more of the missing crimes. 
+
+```{r, eval=FALSE}
+# try replacing bd with blvd 
+blocks_blvd <- blocks %>%
+  filter(is.na(latitude)) %>%
+  separate(col = BLOCK, into = c("number", "street", "identifier", "direction"), sep = " ", remove = FALSE) %>%
+  mutate(street = case_when(street == "CHEROKEEHTS" ~ "CHEROKEE HTS",
+                            street == "MTCURVE" ~ "MT CURVE",
+                            TRUE ~ street)) %>%
+   filter(street %in% c("CAPITOL", "BANDANA", "KELLOGG", "PHALEN", "CHEROKEE HTS", "PLATO", "MT CURVE", "COMO")) %>%
+   mutate(identifier = "BLVD") %>%
+   mutate(identifier = case_when(is.na(identifier) ~ "", 
+                                TRUE ~ identifier), 
+          direction = case_when(is.na(direction) ~ "", 
+                               TRUE ~ direction),
+          new_address = paste(number, street, identifier, direction, sep = " "), 
+          new_address = str_trim(new_address, side = c("right"))) %>%
+   select(-latitude, -longitude) %>%
+   tidygeocoder::geocode(new_address, method = 'osm', lat = latitude, long = longitude) %>%
+  na.omit(latitude)
+
+blocks_pkwy <- blocks %>%
+  filter(is.na(latitude)) %>%
+  separate(col = BLOCK, into = c("number", "street", "identifier", "direction"), sep = " ", remove = FALSE) %>%
+   filter(street %in% c("LEXINGTON", "WHEELOCK")) %>%
+   mutate(identifier = "PKWY") %>%
+   mutate(identifier = case_when(is.na(identifier) ~ "", 
+                                TRUE ~ identifier), 
+          direction = case_when(is.na(direction) ~ "", 
+                               TRUE ~ direction),
+          new_address = paste(number, street, identifier, direction, sep = " "), 
+          new_address = str_trim(new_address, side = c("right"))) %>%
+   select(-latitude, -longitude) %>%
+   tidygeocoder::geocode(new_address, method = 'osm', lat = latitude, long = longitude) %>%
+  na.omit(latitude)
+
+blocks_blvd <- blocks_blvd %>%
+  select(DATE, INCIDENT, new_address, latitude, longitude)
+blocks_pkwy <- blocks_pkwy %>%
+  select(DATE, INCIDENT, new_address, latitude, longitude)
+
+save(blocks_blvd, file = "Data/CrimeCleaned/blocks_blvd.RData")
+save(blocks_pkwy, file = "Data/CrimeCleaned/blocks_pkwy.RData")
 ```
 
 ### Combine intersection and block crimes 
