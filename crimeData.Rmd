@@ -88,6 +88,7 @@ save(minneapolisCrime, file = "Data/Crime/minneapolisCrime.RData")
 ```
 
 Load Saint Paul crime, Minneapolis crime, and gentrification file.
+
 ```{r}
 # Saint Paul crime 
 saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report.csv")
@@ -429,7 +430,7 @@ For street names with a large amount of data points that are not two worded stre
   head(60)
 ```
 
-Fix some common mistakes. This gets us about 6,600 more of the missing crimes. 
+From the list above, fix a few streets that were having issues due to the identifier abbreviation. 
 
 ```{r, eval=FALSE}
 # try replacing bd with blvd 
@@ -475,54 +476,115 @@ save(blocks_blvd, file = "Data/CrimeCleaned/blocks_blvd.RData")
 save(blocks_pkwy, file = "Data/CrimeCleaned/blocks_pkwy.RData")
 ```
 
+Finally, fix the numbered streets.
+
+```{r, eval=FALSE}
+numbered_streets <- saintpaulcrime %>%
+  filter(!str_detect(BLOCK, "&")) %>%
+  select(DATE, INCIDENT, BLOCK) %>%
+  mutate(containsXX = case_when(str_detect(BLOCK, "XX") ~ 1, 
+         TRUE ~ 0)) %>%
+  filter(containsXX == 1) %>%
+  separate(col = BLOCK, into = c("number", "street", "identifier", "direction"), sep = " ", remove = FALSE) %>%
+  filter(str_length(number) == 2) %>%
+  mutate(number = sample(c(10, 20, 30, 40, 50, 60, 70, 80, 90), 2026, replace=TRUE)) %>%
+  mutate(identifier = case_when(is.na(identifier) ~ "", 
+                                TRUE ~ identifier), 
+          direction = case_when(is.na(direction) ~ "", 
+                               TRUE ~ direction),
+          new_address = paste(number, street, identifier, direction, sep = " "), 
+          new_address = str_trim(new_address, side = c("right"))) %>%
+  select(-BLOCK, -number, -street, -identifier, -direction, -containsXX) %>%
+  tidygeocoder::geocode(new_address, method = 'osm', lat = latitude, long = longitude)
+
+numbered_streets <- numbered_streets %>%
+  filter(!is.na(latitude))
+
+save(numbered_streets, file = "Data/CrimeCleaned/numbered_streets.RData")
+```
+
+
 ### Combine intersection and block crimes 
 
-```{r}
-sp_crimes_located <- bind_rows(address_clean, intersection_crimes)
+Create violent, theft, and autotheft data.
+Clean up data repository
+Crime EDA 
+Crime modeling
+
+Combine cleaned files to get Saint Paul crimes.
+
+```{r, eval=FALSE}
+load("Data/CrimeCleaned/numbered_streets.RData")
+load("Data/CrimeCleaned/blocks_blvd.RData")
+load("Data/CrimeCleaned/blocks_pkwy.RData")
+
+numbered_streets <- numbered_streets %>%
+  mutate(year = as.numeric(substr(DATE, 1, 4))) %>%
+  select(DATE, INCIDENT, latitude, longitude, year)
+blocks_blvd <- blocks_blvd %>%
+  mutate(year = as.numeric(substr(DATE, 1, 4))) %>%
+  select(DATE, INCIDENT, latitude, longitude, year)
+blocks_pkwy <- blocks_pkwy %>%
+  mutate(year = as.numeric(substr(DATE, 1, 4))) %>%
+  select(DATE, INCIDENT, latitude, longitude, year)
+  
+
+sp_crimes_located <- bind_rows(address_clean, intersection_crimes, numbered_streets, blocks_blvd, blocks_pkwy)
+save(sp_crimes_located, file = "Data/CrimeCleaned/sp_crimes_located.RData")
 ```
 
 Make the crime coordinates sf geometry points of the right coordinate system.
+
 ```{r}
 sp_sf <- sp_crimes_located %>%
   filter(latitude >0, longitude<0) %>%
+  distinct() %>%
   st_as_sf(coords = c("longitude", "latitude"), crs = "NAD83")
 ```
 
 Aggregate the points by census tract. 
+
 ```{r}
-tract_points_sp <- st_join(sp_sf, left = FALSE, gent_clean["tract"]) 
+tract_points_sp <- st_join(sp_sf, left = FALSE, gent_clean["tractmod"]) 
 plot(tract_points_sp$geometry, pch=21, cex=0.7, col="purple", bg="gray80")
 plot(gent_clean$geometry, border="gray20", col=NA, add=T)
 
 crimes_per_tract_sp <- tract_points_sp %>%
-  group_by(tract, year) %>%
+  filter(!(INCIDENT %in% c("Proactive Police Visit", "Proactive Foot Patrol", "Community Engagement Event", "Community Event", "Discharge")), !is.na(INCIDENT)) %>%
+  group_by(tractmod, year) %>%
   count()
 
 tract_aggregated_sp <- st_join(gent_clean, crimes_per_tract_sp, left = FALSE) %>%
-  select(-tract.y) %>%
-  rename("tract" = "tract.x") %>%
-  mutate(crimes_per_1000 = (n/population_2010) * 1000, 
+  select(-tractmod.y) %>%
+  rename("tractmod" = "tractmod.x") %>%
+  mutate(crimes_per_1000 = (n/population_2020) * 1000, 
          crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=23 ~ "0-23", 
                                       crimes_per_1000 >23 & crimes_per_1000 <= 36 ~ "24-36", 
                                       crimes_per_1000 > 36 & crimes_per_1000 <= 52 ~ "37-52", 
                                       crimes_per_1000 >52 & crimes_per_1000 <= 75 ~ "53-75", 
                                       TRUE ~ "75+")), 
          crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-23", "24-36", "37-52", "53-75", "75+"))) %>%
-  filter(county == "Ramsey", !(tract %in% c(409.01, 408.01, 405.02, 402, 411.07, 408.03, 408.02, 412, 404.01, 404.02, 413.02, 414, 415, 413.01, 416.01, 424.01, 426.01, 427, 424.02, 425.01)))
+  filter(county_2020 == "Ramsey")
 ```
 
 Join crime data with `gent_clean` file.
 
 ```{r}
-tract_points_sp <- st_join(sp_sf, left = FALSE, gent_clean["tract"]) %>%
+tract_points_sp <- st_join(sp_sf, left = FALSE, gent_clean["tractmod"]) %>%
   st_join(gent_clean) %>%
-  select(-tract.y) %>%
-  rename("tract" = "tract.x")
+  select(-tractmod.y) %>%
+  rename("tractmod" = "tractmod.x") %>%
+  filter(!(INCIDENT %in% c("Proactive Police Visit", "Proactive Foot Patrol", "Community Engagement Event", "Community Event", "Discharge")), !is.na(INCIDENT)) %>%
+  mutate(incident_group = case_when(INCIDENT %in% c("THEFT", "Theft") ~ "Theft", 
+                                   INCIDENT %in% c("Auto Theft") ~ "Auto Theft",
+                                   INCIDENT %in% c("Burglary", "Robbery") ~ "Burglary",
+                                   INCIDENT %in% c("Agg. Assault", "Agg. Assault Dom", "Agg. Assault Dom.", "Homicide", "Rape", "Simple Asasult Dom.", "Simple Assault Dom", "Simple Assault Dom.") ~ "Assault", 
+                                   TRUE ~ "Other"))
 ```
 
 
 ```{r,eval=FALSE}
-save(tract_aggregated_sp, file = 'Data/tract_aggregated_sp.RData')
-save(tract_points_sp, file = "Data/tract_points_sp.RData")
+save(tract_aggregated_sp, file = 'Data/CrimeCleaned/tract_aggregated_sp.RData')
+save(tract_points_sp, file = "Data/CrimeCleaned/tract_points_sp.RData")
 ```
 

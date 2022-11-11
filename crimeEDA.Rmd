@@ -19,8 +19,8 @@ library(PrettyCols)
 library(ggmap)
 library(sf)
 
-load('Data/tract_aggregated.RData')
-load('Data/tract_points.RData')
+load('Data/CrimeCleaned/tract_aggregated_minneapolis.RData')
+load('Data/CrimeCleaned/tract_points_minneapolis.RData')
 load('Data/gent_clean.RData')
 ```
 
