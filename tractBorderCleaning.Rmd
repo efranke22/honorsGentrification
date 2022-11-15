@@ -251,6 +251,7 @@ load("Data/tractData/minneapolis_tracts.RData")
 load("Data/tractData/saintPaul_tracts.RData")
 
 a <- minneapolis_tracts %>%
+  filter(tractmod != 332.00) %>%
   left_join(final_condensed, by = "tractmod") %>%
   mutate(city = "Minneapolis")
 b <- saintPaul_tracts %>%
@@ -268,23 +269,6 @@ save(acs2020clean, file = "Data/tractData/cleaned/acs2020clean.RData")
 save(final, file = "Data/tractData/cleaned/final.RData")
 save(final_condensed, file = "Data/tractData/cleaned/final_condensed.RData")
 save(final_condensed_msp, file = "Data/tractData/cleaned/final_condensed_msp.RData")
-```
-
-```{r, eval=FALSE}
-minneapolis_tracts <- tract_aggregated %>%
-  count(tract) %>%
-  arrange(desc(n)) %>%
-  select(tract) %>%
-  rename("tractmod" = "tract")
-
-saintPaul_tracts <- tract_aggregated_sp %>%
-  count(tract) %>%
-  arrange(desc(n)) %>%
-  select(tract) %>%
-  rename("tractmod" = "tract")
-
-save(minneapolis_tracts, file = "Data/tractData/minneapolis_tracts.RData")
-save(saintPaul_tracts, file = "Data/tractData/saintPaul_tracts.RData")
 ```
 
 
