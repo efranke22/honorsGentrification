@@ -19,23 +19,76 @@ library(PrettyCols)
 library(ggmap)
 library(sf)
 
+load('Data/gent_clean.RData')
+
+#Minneapolis
 load('Data/CrimeCleaned/tract_aggregated_minneapolis.RData')
 load('Data/CrimeCleaned/tract_points_minneapolis.RData')
-load('Data/gent_clean.RData')
+load("Data/CrimeCleaned/tract_aggregated_minneapolis_violent.RData")
+load("Data/CrimeCleaned/tract_aggregated_minneapolis_theft.RData")
+load("Data/CrimeCleaned/tract_aggregated_minneapolis_autotheft.RData")
+
+
+#Saint Paul
+load('Data/CrimeCleaned/tract_aggregated_sp.RData')
+load("Data/CrimeCleaned/tract_points_sp.RData")
+load("Data/CrimeCleaned/tract_aggregated_sp_violent.RData")
+load("Data/CrimeCleaned/tract_aggregated_sp_theft.RData")
+load("Data/CrimeCleaned/tract_aggregated_sp_autotheft.RData")
 ```
 
-## Exploratory Data Analysis - Minneapolis Crime
+# EDA - Minneapolis
 
 Explore year distribution of crimes in Minneapolis.
 
 ```{r}
 tract_aggregated %>%
+  filter(year == 2010) %>%
   ggplot()+
   geom_sf(aes(fill = crimes_per_1000d))+
   theme_classic()+
-  scale_fill_natparks_d(name = "Olympic")
-```
+  scale_fill_natparks_d(name = "Olympic")+
+  labs(title = "Crimes per 1000 residents in 2010 \nby Minneapolis census tract", fill = "")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size = 10), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.line = element_blank())
 
+tract_aggregated %>%
+  filter(year == 2021) %>%
+  ggplot()+
+  geom_sf(aes(fill = crimes_per_1000d))+
+  theme_classic()+
+  scale_fill_natparks_d(name = "Olympic")+
+  labs(title = "Crimes per 1000 residents in 2021 \nby Minneapolis census tract", fill = "")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size = 10), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.line = element_blank())
+
+tract_aggregated_violent %>%
+  filter(year %in% c(2010, 2021)) %>%
+  mutate(crimes_per_1000 = round((n/population_2020) * 1000, 0),
+         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=2 ~ "0.1-2", 
+                                      crimes_per_1000 >2 & crimes_per_1000 <= 4 ~ "3-4", 
+                                      crimes_per_1000 > 4 & crimes_per_1000 <= 7 ~ "5-7", 
+                                      crimes_per_1000 >7 & crimes_per_1000 <= 11 ~ "8-11", 
+                                      TRUE ~ "12+")),
+         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0.1-2", "3-4", "5-7", "8-11", "12+"))) %>%
+  ggplot()+
+  geom_sf(aes(fill = crimes_per_1000d))+
+  theme_classic()+
+  facet_wrap(~year)+
+  scale_fill_natparks_d(name = "Olympic")+
+  labs(title = "Crimes per 1000 residents in 2021 \nby Minneapolis census tract", fill = "")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size = 10), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.line = element_blank())
+```
 
 ```{r}
 ggplot() +
