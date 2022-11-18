@@ -152,7 +152,8 @@ tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tractmod"]) %>%
                                    Offense == "BURGD" ~ "Home Burglary", 
                                    Offense %in% c("BURGB", "ROBBIZ", "TBLDG") ~ "Business Burglary", 
                                    Offense %in% c("ASLT2", "CSCR", "DASTR", "DASLT2", "ASLT3", "ASLT4", "DASLT3", "MURDR", "ASLT1", "DASLT1") ~ "Assault", 
-                                   TRUE ~ "Other"))
+                                   TRUE ~ "Other")) %>%
+  filter(tract != 332)
 ```
 
 ```{r,eval=FALSE}
@@ -163,55 +164,80 @@ save(tract_points, file = "Data/CrimeCleaned/tract_points_minneapolis.RData")
 ### Violent crimes in Minneapolis
 
 ```{r}
-total_crimes_per_tract <- tract_points %>%
-  group_by(tract, year) %>%
-  count() %>%
-  rename("total" = "n")
-
 crimes_per_tract_violent <- tract_points %>%
+  st_drop_geometry() %>%
   filter(offense_group == "Assault") %>%
   group_by(tract, year) %>%
-  count() 
+  count() %>%
+  pivot_wider(names_from = year, values_from = n) %>%
+  replace(is.na(.),0) %>%
+  pivot_longer(cols = c(`2010`:`2022`),names_to = "year", values_to = "n") %>%
+  filter(tract != 332)
 
-tract_aggregated_violent <- st_join(gent_clean, crimes_per_tract_violent %>% rename("tractmod" = "tract"), left = FALSE) %>%
-  select(-tractmod.y) %>%
-  rename("tractmod" = "tractmod.x") %>%
-  mutate(crimes_per_1000 = (n/population_2020) * 1000)
+tract_aggregated_violent <- gent_clean %>%
+  right_join(crimes_per_tract_violent, by = c("tractmod" = "tract")) %>%
+  mutate(crimes_per_1000 = round((n/population_2020) * 1000,0),
+         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=4 ~ "0-5", 
+                                      crimes_per_1000 >5 & crimes_per_1000 <= 10~ "6-10", 
+                                      crimes_per_1000 > 10 & crimes_per_1000 <= 15 ~ "11-15", 
+                                      crimes_per_1000 >15 & crimes_per_1000 <= 20 ~ "16-20", 
+                                      TRUE ~ "20+")), 
+         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-5", "6-10", "11-15", "16-20", "20+")))
 ```
 
 ### Thefts in Minneapolis
 
 ```{r}
 crimes_per_tract_theft <- tract_points %>%
+  st_drop_geometry() %>%
   filter(offense_group == "Theft") %>%
   group_by(tract, year) %>%
-  count()
+  count() %>%
+  pivot_wider(names_from = year, values_from = n) %>%
+  replace(is.na(.),0) %>%
+  pivot_longer(cols = c(`2010`:`2022`),names_to = "year", values_to = "n") %>%
+  filter(tract != 332)
 
-tract_aggregated_theft <- st_join(gent_clean, crimes_per_tract_theft %>% rename("tractmod" = "tract"), left = FALSE) %>%
-  select(-tractmod.y) %>%
-  rename("tractmod" = "tractmod.x") %>%
-  mutate(crimes_per_1000 = (n/population_2020) * 1000)
+tract_aggregated_theft <- gent_clean %>%
+  right_join(crimes_per_tract_theft, by = c("tractmod" = "tract")) %>%
+  mutate(crimes_per_1000 = round((n/population_2020) * 1000,0),
+         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=10 ~ "0-10", 
+                                      crimes_per_1000 >10 & crimes_per_1000 <= 20~ "11-20", 
+                                      crimes_per_1000 > 20 & crimes_per_1000 <= 30 ~ "21-30", 
+                                      crimes_per_1000 >30 & crimes_per_1000 <= 40 ~ "31-40", 
+                                      TRUE ~ "40+")), 
+         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-10", "11-20", "21-30", "31-40", "40+")))
 ```
 
 ### Auto Thefts in Minneapolis
 
 ```{r}
-crimes_per_tract_autotheft <- tract_points %>%
+crimes_per_tract_auto_theft <- tract_points %>%
+  st_drop_geometry() %>%
   filter(offense_group == "Auto Theft") %>%
   group_by(tract, year) %>%
-  count()
+  count() %>%
+  pivot_wider(names_from = year, values_from = n) %>%
+  replace(is.na(.),0) %>%
+  pivot_longer(cols = c(`2010`:`2022`),names_to = "year", values_to = "n") %>%
+  filter(tract != 332)
 
-tract_aggregated_autotheft <- st_join(gent_clean, crimes_per_tract_theft %>% rename("tractmod" = "tract"), left = FALSE) %>%
-  select(-tractmod.y) %>%
-  rename("tractmod" = "tractmod.x") %>%
-  mutate(crimes_per_1000 = (n/population_2020) * 1000)
+tract_aggregated_auto_theft <- gent_clean %>%
+  right_join(crimes_per_tract_auto_theft, by = c("tractmod" = "tract")) %>%
+  mutate(crimes_per_1000 = round((n/population_2020) * 1000,0),
+         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=10 ~ "0-10", 
+                                      crimes_per_1000 >10 & crimes_per_1000 <= 20~ "11-20", 
+                                      crimes_per_1000 > 20 & crimes_per_1000 <= 30 ~ "21-30", 
+                                      crimes_per_1000 >30 & crimes_per_1000 <= 40 ~ "31-40", 
+                                      TRUE ~ "40+")), 
+         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-10", "11-20", "21-30", "31-40", "40+")))
 ```
 
 
 ```{r, eval=FALSE}
 save(tract_aggregated_violent, file = "Data/CrimeCleaned/tract_aggregated_minneapolis_violent.RData")
 save(tract_aggregated_theft, file = "Data/CrimeCleaned/tract_aggregated_minneapolis_theft.RData")
-save(tract_aggregated_autotheft, file = "Data/CrimeCleaned/tract_aggregated_minneapolis_autotheft.RData")
+save(tract_aggregated_auto_theft, file = "Data/CrimeCleaned/tract_aggregated_minneapolis_autotheft.RData")
 ```
 
 ## Cleaning saint paul crime data
@@ -583,30 +609,29 @@ sp_sf <- sp_crimes_located %>%
 Aggregate the points by census tract. After removing recorded events that are not crimes (meaning discharges, community events, etc), we have 70,851 crimes in Saint Paul. So we have roughly 86.5% of all crimes of interest that occurred. 
 
 ```{r}
-tract_points_sp <- st_join(sp_sf, left = FALSE, gent_clean["tractmod"]) 
-plot(tract_points_sp$geometry, pch=21, cex=0.7, col="purple", bg="gray80")
+tract_points_sp <- st_join(sp_sf, left = FALSE, gent_clean["tractmod"])
+plot(tract_points$geometry, pch=21, cex=0.7, col="purple", bg="gray80")
 plot(gent_clean$geometry, border="gray20", col=NA, add=T)
 
 crimes_per_tract_sp <- tract_points_sp %>%
   filter(!(INCIDENT %in% c("Proactive Police Visit", "Proactive Foot Patrol", "Community Engagement Event", "Community Event", "Discharge")), !is.na(INCIDENT)) %>%
-  group_by(tractmod, year) %>%
-  count()
+  st_drop_geometry() %>%
+  group_by(tractmod, year, .drop=FALSE) %>%
+  count() %>%
+  pivot_wider(names_from = year, values_from = n) %>%
+  replace(is.na(.),0) %>%
+  pivot_longer(cols = c(`2014`:`2022`),names_to = "year", values_to = "n")
 
-#total crimes
-crimes_per_tract_sp %>%
-  summarize(total = sum(n))
-
-tract_aggregated_sp <- st_join(gent_clean, crimes_per_tract_sp, left = FALSE) %>%
-  select(-tractmod.y) %>%
-  rename("tractmod" = "tractmod.x") %>%
-  mutate(crimes_per_1000 = (n/population_2020) * 1000, 
-         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=23 ~ "0-23", 
-                                      crimes_per_1000 >23 & crimes_per_1000 <= 36 ~ "24-36", 
-                                      crimes_per_1000 > 36 & crimes_per_1000 <= 52 ~ "37-52", 
-                                      crimes_per_1000 >52 & crimes_per_1000 <= 75 ~ "53-75", 
-                                      TRUE ~ "75+")), 
-         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-23", "24-36", "37-52", "53-75", "75+"))) %>%
-  filter(county_2020 == "Ramsey")
+tract_aggregated_sp <- gent_clean %>%
+  right_join(crimes_per_tract_sp, by = "tractmod") %>%
+  mutate(crimes_per_1000 = round((n/population_2020) * 1000,0),
+         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=20 ~ "0-20", 
+                                      crimes_per_1000 >20 & crimes_per_1000 <= 40 ~ "21-40", 
+                                      crimes_per_1000 > 41 & crimes_per_1000 <= 60 ~ "41-60", 
+                                      crimes_per_1000 >61 & crimes_per_1000 <= 80 ~ "61-80", 
+                                      TRUE ~ "80+")), 
+         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-20", "21-40", "41-60", "61-80", "80+"))) %>%
+  filter(county_2020 != "Ramsey")
 ```
 
 Join crime data with `gent_clean` file.
@@ -621,7 +646,8 @@ tract_points_sp <- st_join(sp_sf, left = FALSE, gent_clean["tractmod"]) %>%
                                    INCIDENT %in% c("Auto Theft") ~ "Auto Theft",
                                    INCIDENT %in% c("Burglary", "Robbery") ~ "Burglary",
                                    INCIDENT %in% c("Agg. Assault", "Agg. Assault Dom", "Agg. Assault Dom.", "Homicide", "Rape", "Simple Asasult Dom.", "Simple Assault Dom", "Simple Assault Dom.") ~ "Assault", 
-                                   TRUE ~ "Other"))
+                                   TRUE ~ "Other")) %>%
+  filter(!tractmod %in% c(1036, 1051, 1055, 1062, 1065, 1256))
 ```
 
 ```{r,eval=FALSE}
@@ -634,48 +660,72 @@ save(tract_points_sp, file = "Data/CrimeCleaned/tract_points_sp.RData")
 ### Violent crimes in Saint Paul
 
 ```{r}
-sp_violent <- tract_points_sp %>%
+crimes_per_tract_violent_sp <- tract_points_sp %>%
+  st_drop_geometry() %>%
   filter(incident_group == "Assault") %>%
   group_by(tractmod, year) %>%
-  count()
+  count() %>%
+  pivot_wider(names_from = year, values_from = n) %>%
+  replace(is.na(.),0) %>%
+  pivot_longer(cols = c(`2014`:`2022`),names_to = "year", values_to = "n")
 
-tract_aggregated_violent_sp <- st_join(gent_clean, sp_violent, left = FALSE) %>%
-  select(-tractmod.y) %>%
-  rename("tractmod" = "tractmod.x") %>%
-  mutate(crimes_per_1000 = (n/population_2020) * 1000)
+tract_aggregated_violent_sp <- gent_clean %>%
+  right_join(crimes_per_tract_violent_sp, by = c("tractmod")) %>%
+  mutate(crimes_per_1000 = round((n/population_2020) * 1000,0),
+         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=2 ~ "0-3", 
+                                      crimes_per_1000 >4 & crimes_per_1000 <= 6~ "4-6", 
+                                      crimes_per_1000 > 6 & crimes_per_1000 <= 9 ~ "7-9", 
+                                      TRUE ~ "9-18")), 
+         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-3", "4-6", "7-9", "9-18")))
 ```
 
 ### Thefts in Saint Paul
 
 ```{r}
-theft_sp<- tract_points_sp %>%
+crimes_per_tract_theft_sp <- tract_points_sp %>%
+  st_drop_geometry() %>%
   filter(incident_group == "Theft") %>%
   group_by(tractmod, year) %>%
-  count()
+  count() %>%
+  pivot_wider(names_from = year, values_from = n) %>%
+  replace(is.na(.),0) %>%
+  pivot_longer(cols = c(`2014`:`2022`),names_to = "year", values_to = "n")
 
-tract_aggregated_theft_sp <- st_join(gent_clean, theft_sp, left = FALSE) %>%
-  select(-tractmod.y) %>%
-  rename("tractmod" = "tractmod.x") %>%
-  mutate(crimes_per_1000 = (n/population_2020) * 1000)
+tract_aggregated_theft_sp <- gent_clean %>%
+  right_join(crimes_per_tract_theft_sp, by = c("tractmod")) %>%
+  mutate(crimes_per_1000 = round((n/population_2020) * 1000,0), 
+         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=10 ~ "0-10", 
+                                      crimes_per_1000 >10 & crimes_per_1000 <= 20~ "11-20", 
+                                      crimes_per_1000 > 20 & crimes_per_1000 <= 30 ~ "21-30", 
+                                      crimes_per_1000 >30 & crimes_per_1000 <= 40 ~ "31-40", 
+                                      TRUE ~ "40+")), 
+         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-10", "11-20", "21-30", "31-40", "40+")))
 ```
 
 ### Auto Thefts in Saint Paul
 
 ```{r}
-sp_autotheft <- tract_points_sp %>%
+crimes_per_tract_auto_theft_sp <- tract_points_sp %>%
+  st_drop_geometry() %>%
   filter(incident_group == "Auto Theft") %>%
   group_by(tractmod, year) %>%
-  count()
+  count() %>%
+  pivot_wider(names_from = year, values_from = n) %>%
+  replace(is.na(.),0) %>%
+  pivot_longer(cols = c(`2015`:`2014`),names_to = "year", values_to = "n")
 
-tract_aggregated_autotheft_sp <- st_join(gent_clean, sp_autotheft, left = FALSE) %>%
-  select(-tractmod.y) %>%
-  rename("tractmod" = "tractmod.x") %>%
-  mutate(crimes_per_1000 = (n/population_2020) * 1000)
+tract_aggregated_auto_theft_sp <- gent_clean %>%
+  right_join(crimes_per_tract_auto_theft_sp, by = c("tractmod")) %>%
+  mutate(crimes_per_1000 = round((n/population_2020) * 1000,0),
+         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=5 ~ "0-5", 
+                                      crimes_per_1000 >5 & crimes_per_1000 <= 10~ "6-10", 
+                                      crimes_per_1000 > 11 & crimes_per_1000 <= 15 ~ "11-15", 
+                                      TRUE  ~ "16-24")), 
+         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-5", "6-10", "11-15", "16-24")))
 ```
-
 
 ```{r, eval=FALSE}
 save(tract_aggregated_violent_sp, file = "Data/CrimeCleaned/tract_aggregated_sp_violent.RData")
 save(tract_aggregated_theft_sp, file = "Data/CrimeCleaned/tract_aggregated_sp_theft.RData")
-save(tract_aggregated_autotheft_sp, file = "Data/CrimeCleaned/tract_aggregated_sp_autotheft.RData")
+save(tract_aggregated_auto_theft_sp, file = "Data/CrimeCleaned/tract_aggregated_sp_autotheft.RData")
 ```
