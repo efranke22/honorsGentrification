@@ -14,13 +14,13 @@ library(tidyverse)
 library(sf)
 ```
 
-Minneapolis models
+## Minneapolis modeling
 
 ```{r}
 load("Data/CrimeCleaned/tract_aggregated_minneapolis.RData")
-load("Data/CrimeCleaned/tract_aggregated_sp.RData")
-load("Data/CrimeCleaned/tract_points_sp.RData")
 load("Data/CrimeCleaned/tract_aggregated_minneapolis_violent.RData")
+load("Data/CrimeCleaned/tract_aggregated_minneapolis_theft.RData")
+load("Data/CrimeCleaned/tract_aggregated_minneapolis_autotheft.RData")
 ```
 
 ```{r}
@@ -51,119 +51,289 @@ crimes_wide_minn$pew <- relevel(crimes_wide_minn$pew, ref = "1")
 minn1 = glm(`2019` ~ canGent_gentrified + avg2010to2011 + population_2010, data = crimes_wide_minn, family = "poisson")
 summary(minn1)
 
-minn2 = glm(`2019` ~  freeman + avg2010to2015 + population_2010, data = crimes_wide_minn, family = "poisson")
+minn2 = glm(`2019` ~  freeman + avg2010to2011 + population_2010, data = crimes_wide_minn, family = "poisson")
 summary(minn2)
 
-minn3 = glm(`2019` ~  ding + avg2010to2015 + population_2010, data = crimes_wide_minn, family = "poisson")
+minn3 = glm(`2019` ~  ding + avg2010to2011 + population_2010, data = crimes_wide_minn, family = "poisson")
 summary(minn3)
 
-minn4 = glm(`2019` ~  pew + avg2010to2015 + population_2010, data = crimes_wide_minn, family = "poisson")
+minn4 = glm(`2019` ~  pew + avg2010to2011 + population_2010, data = crimes_wide_minn, family = "poisson")
 summary(minn4)
 ```
 
 ```{r}
-
+crimes_wide_minn %>%
+  count(freeman, ding, pew, canGent_gentrified) 
 ```
 
+Violent crimes 
 
+```{r}
+crimes_wide_minn_violent <- tract_aggregated_violent %>%
+  mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = crimes_per_1000) %>%
+  mutate(avg2010to2011 = (`2010` + `2011`)/2,
+         freeman = as.factor(case_when(canGent == 0 ~ "0", 
+                             canGent == 1 & freeman == "0" ~ "1", 
+                             canGent == 1 & freeman == "1" ~ "2")),
+         ding = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & ding == "0" ~ "1", 
+                             canGent == 1 & ding == "1" ~ "2")),
+         pew = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & pew == "0" ~ "1", 
+                             canGent == 1 & pew == "1" ~ "2")),
+         city = "Minneapolis")
 
+crimes_wide_minn_violent$canGent_gentrified <- relevel(crimes_wide_minn_violent$canGent_gentrified, ref = "1")
+crimes_wide_minn_violent$freeman <- relevel(crimes_wide_minn_violent$freeman, ref = "1")
+crimes_wide_minn_violent$ding <- relevel(crimes_wide_minn_violent$ding, ref = "1")
+crimes_wide_minn_violent$pew <- relevel(crimes_wide_minn_violent$pew, ref = "1")
+```
 
+```{r}
+minn_violent_1 = glm(`2019` ~ canGent_gentrified + avg2010to2011 + population_2010, data = crimes_wide_minn_violent, family = "poisson")
+summary(minn_violent_1)
+
+minn_violent_2 = glm(`2019` ~  freeman + avg2010to2011 + population_2010, data = crimes_wide_minn_violent, family = "poisson")
+summary(minn_violent_2)
+
+minn_violent_3 = glm(`2019` ~  ding + avg2010to2011 + population_2010, data = crimes_wide_minn_violent, family = "poisson")
+summary(minn_violent_3)
+
+minn_violent_4 = glm(`2019` ~  pew + avg2010to2011 + population_2010, data = crimes_wide_minn_violent, family = "poisson")
+summary(minn_violent_4)
+```
+
+Theft 
+
+```{r}
+crimes_wide_minn_theft <- tract_aggregated_theft %>%
+  mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = crimes_per_1000) %>%
+  mutate(avg2010to2011 = (`2010` + `2011`)/2,
+         freeman = as.factor(case_when(canGent == 0 ~ "0", 
+                             canGent == 1 & freeman == "0" ~ "1", 
+                             canGent == 1 & freeman == "1" ~ "2")),
+         ding = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & ding == "0" ~ "1", 
+                             canGent == 1 & ding == "1" ~ "2")),
+         pew = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & pew == "0" ~ "1", 
+                             canGent == 1 & pew == "1" ~ "2")),
+         city = "Minneapolis")
+
+crimes_wide_minn_theft$canGent_gentrified <- relevel(crimes_wide_minn_theft$canGent_gentrified, ref = "1")
+crimes_wide_minn_theft$freeman <- relevel(crimes_wide_minn_theft$freeman, ref = "1")
+crimes_wide_minn_theft$ding <- relevel(crimes_wide_minn_theft$ding, ref = "1")
+crimes_wide_minn_theft$pew <- relevel(crimes_wide_minn_theft$pew, ref = "1")
+```
+
+```{r}
+minn_theft_1 = glm(`2019` ~ canGent_gentrified + avg2010to2011 + population_2010, data = crimes_wide_minn_theft, family = "poisson")
+summary(minn_theft_1)
+
+minn_theft_2 = glm(`2019` ~  freeman + avg2010to2011 + population_2010, data = crimes_wide_minn_theft, family = "poisson")
+summary(minn_theft_2)
+
+minn_theft_3 = glm(`2019` ~  ding + avg2010to2011 + population_2010, data = crimes_wide_minn_theft, family = "poisson")
+summary(minn_theft_3)
+
+minn_theft_4 = glm(`2019` ~  pew + avg2010to2011 + population_2010, data = crimes_wide_minn_theft, family = "poisson")
+summary(minn_theft_4)
+```
+
+Auto theft
+
+```{r}
+crimes_wide_minn_auto_theft <- tract_aggregated_auto_theft %>%
+  mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = crimes_per_1000) %>%
+  mutate(avg2010to2011 = (`2010` + `2011`)/2,
+         freeman = as.factor(case_when(canGent == 0 ~ "0", 
+                             canGent == 1 & freeman == "0" ~ "1", 
+                             canGent == 1 & freeman == "1" ~ "2")),
+         ding = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & ding == "0" ~ "1", 
+                             canGent == 1 & ding == "1" ~ "2")),
+         pew = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & pew == "0" ~ "1", 
+                             canGent == 1 & pew == "1" ~ "2")),
+         city = "Minneapolis")
+
+crimes_wide_minn_auto_theft$canGent_gentrified <- relevel(crimes_wide_minn_auto_theft$canGent_gentrified, ref = "1")
+crimes_wide_minn_auto_theft$freeman <- relevel(crimes_wide_minn_auto_theft$freeman, ref = "1")
+crimes_wide_minn_auto_theft$ding <- relevel(crimes_wide_minn_auto_theft$ding, ref = "1")
+crimes_wide_minn_auto_theft$pew <- relevel(crimes_wide_minn_auto_theft$pew, ref = "1")
+```
+
+```{r}
+minn_auto_theft_1 = glm(`2019` ~ canGent_gentrified + avg2010to2011 + population_2010, data = crimes_wide_minn_auto_theft, family = "poisson")
+summary(minn_auto_theft_1)
+
+minn_auto_theft_2 = glm(`2019` ~  freeman + avg2010to2011 + population_2010, data = crimes_wide_minn_auto_theft, family = "poisson")
+summary(minn_auto_theft_2)
+
+minn_auto_theft_3 = glm(`2019` ~  ding + avg2010to2011 + population_2010, data = crimes_wide_minn_auto_theft, family = "poisson")
+summary(minn_auto_theft_3)
+
+minn_auto_theft_4 = glm(`2019` ~  pew + avg2010to2011 + population_2010, data = crimes_wide_minn_auto_theft, family = "poisson")
+summary(minn_auto_theft_4)
+```
+
+## Saint Paul modeling
+
+```{r}
+load("Data/CrimeCleaned/tract_aggregated_sp.RData")
+load("Data/CrimeCleaned/tract_aggregated_sp_violent.RData")
+load("Data/CrimeCleaned/tract_aggregated_sp_theft.RData")
+load("Data/CrimeCleaned/tract_aggregated_sp_autotheft.RData")
+```
+
+Very few tracts gentrified in Saint Paul. According to Freeman, only one tract gentrified. Ding's methods show 11 to have gentrified and the PEW methods show 10 to have gentrified. 
+
+```{r}
+tract_aggregated_sp %>%
+  filter(year == 2020) %>%
+  count(freeman, ding, pew, canGent_gentrified)
+```
 
 
 ```{r}
 crimes_wide_sp <- tract_aggregated_sp %>%
   mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
   st_drop_geometry() %>%
-  mutate(crimes_per_1000 = case_when(is.na(crimes_per_1000) ~ 0, 
-                                     TRUE ~ crimes_per_1000)) %>%
   pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = crimes_per_1000) %>%
-  mutate(city = "Saint Paul")
+  mutate(freeman = as.factor(case_when(canGent == 0 ~ "0", 
+                             canGent == 1 & freeman == "0" ~ "1", 
+                             canGent == 1 & freeman == "1" ~ "2")),
+         ding = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & ding == "0" ~ "1", 
+                             canGent == 1 & ding == "1" ~ "2")),
+         pew = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & pew == "0" ~ "1", 
+                             canGent == 1 & pew == "1" ~ "2")))
 
 crimes_wide_sp$canGent_gentrified <- relevel(crimes_wide_sp$canGent_gentrified, ref = "1")
+crimes_wide_sp$freeman <- relevel(crimes_wide_sp$freeman, ref = "1")
+crimes_wide_sp$ding <- relevel(crimes_wide_sp$ding, ref = "1")
+crimes_wide_sp$pew <- relevel(crimes_wide_sp$pew, ref = "1")
 ```
 
 ```{r}
-cw_sp_small <- crimes_wide_sp %>%
-  select(tractmod, canGent_gentrified, population_2010, `2015`, `2021`, city)
-cw_minn_small <- crimes_wide_minn %>%
-  select(tract, canGent_gentrified, population_2010, `2015`, `2021`, city) %>%
-  rename("tractmod" = "tract")
-crimes_wide_all <- bind_rows(cw_sp_small, cw_minn_small)
+sp1 = glm(`2019` ~ canGent_gentrified + `2015` + population_2010, data = crimes_wide_sp, family = "poisson")
+summary(sp1)
+
+sp2 = glm(`2019` ~  ding + `2015` + population_2010, data = crimes_wide_sp, family = "poisson")
+summary(sp2)
+
+sp3 = glm(`2019` ~  pew + `2015` + population_2010, data = crimes_wide_sp, family = "poisson")
+summary(sp3)
 ```
 
-
-Models predicting 2022 crime controlling for 2010-2015 crime rate:
-
-```{r}
-mod1 = glm(`2021` ~ canGent_gentrified + avg2010to2015, data = crimes_wide_minn, family = "poisson")
-summary(mod1)
-
-mod1_sp = glm(`2021` ~ canGent_gentrified + `2015`, data = crimes_wide_sp, family = "poisson")
-summary(mod1_sp)
-
-mod1_all = glm(`2021` ~ canGent_gentrified + `2015`, data = crimes_wide_all, family = "poisson")
-summary(mod1_all)
-```
-
-Models predicting 2022 crime controlling for 2010-2015 crime rate and population:
+Violent crimes in Saint Paul
 
 ```{r}
-mod2 = glm(`2021` ~ canGent_gentrified + avg2010to2015 + population_2010, data = crimes_wide_minn, family = "poisson")
-summary(mod2)
-
-mod3 = glm(`2021` ~ canGent_gentrified + `2015` + population_2010, data = crimes_wide_minn, family = "poisson")
-summary(mod3)
-
-mod2_sp = glm(`2021` ~ canGent_gentrified + `2015` + population_2010, data = crimes_wide_sp, family = "poisson")
-summary(mod2_sp)
-
-mod2_all = glm(`2021` ~ canGent_gentrified * city + `2015` + population_2010, data = crimes_wide_all, family = "poisson")
-summary(mod2_all)
-```
-
-```{r}
-crimes_wide_all %>%
-  ggplot(aes(x=canGent_gentrified, y=(`2021`-`2015`), color = city))+
-  geom_boxplot()
-```
-
-
-Models predicting violent crime:
-
-```{r}
-crimes_wide_violent <- tract_aggregated_violent %>%
+crimes_wide_violent_sp <- tract_aggregated_violent_sp %>%
   mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
   st_drop_geometry() %>%
-  pivot_wider(id_cols = c(tractmod, canGent_gentrified, population_2010),names_from = year, values_from = crimes_per_1000) %>%
-  mutate(avg2010to2015 = (`2010` + `2011` + `2012` + `2013` + `2014` + `2015`)/6)
+  pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = crimes_per_1000) %>%
+  mutate(freeman = as.factor(case_when(canGent == 0 ~ "0", 
+                             canGent == 1 & freeman == "0" ~ "1", 
+                             canGent == 1 & freeman == "1" ~ "2")),
+         ding = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & ding == "0" ~ "1", 
+                             canGent == 1 & ding == "1" ~ "2")),
+         pew = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & pew == "0" ~ "1", 
+                             canGent == 1 & pew == "1" ~ "2")))
 
-crimes_wide_violent$canGent_gentrified <- relevel(crimes_wide_violent$canGent_gentrified, ref = "1")
-
-mod4 = glm(`2021` ~ canGent_gentrified + avg2010to2015 + population_2010, data = crimes_wide_violent, family = "poisson")
-summary(mod4)
+crimes_wide_violent_sp$canGent_gentrified <- relevel(crimes_wide_violent_sp$canGent_gentrified, ref = "1")
+crimes_wide_violent_sp$freeman <- relevel(crimes_wide_violent_sp$freeman, ref = "1")
+crimes_wide_violent_sp$ding <- relevel(crimes_wide_violent_sp$ding, ref = "1")
+crimes_wide_violent_sp$pew <- relevel(crimes_wide_violent_sp$pew, ref = "1")
 ```
-
-
-Models predicting non-violent crime:
 
 ```{r}
-crimes_wide_theft <- tract_aggregated_theft %>%
-  mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
-  st_drop_geometry() %>%
-  pivot_wider(id_cols = c(tract:ding),names_from = year, values_from = crimes_per_1000) %>%
-  replace(is.na(.), 0) %>%
-  mutate(avg2010to2015 = (`2010` + `2011` + `2012` + `2013` + `2014` + `2015`)/6)
+sp1_violent = glm(`2019` ~ canGent_gentrified + `2015` + population_2010, data = crimes_wide_violent_sp, family = "poisson")
+summary(sp1_violent)
 
-mod4 = glm(`2021` ~ ding + canGent + avg2010to2015 + population_2010, data = crimes_wide_theft, family = "poisson")
-summary(mod4)
+sp2_violent = glm(`2019` ~  ding + `2015` + population_2010, data = crimes_wide_violent_sp, family = "poisson")
+summary(sp2_violent)
 
-mod4b = glm(`2021` ~ freeman + canGent + avg2010to2015 + population_2010, data = crimes_wide_theft, family = "poisson")
-summary(mod4b)
+sp3_violent = glm(`2019` ~  pew + `2015` + population_2010, data = crimes_wide_violent_sp, family = "poisson")
+summary(sp3_violent)
 ```
 
-X Create variable that combines canGent and gentrifed (0, 1, 2) \
-X Get a third method for defining gentrification
-**Combine crime data and run msp together**
-**Finish address cleanup for msp** 
-**Investigate discrepancies between freeman and ding and new method** 
-**Spatial modeling!** 
+Theft in Saint Paul
+
+```{r}
+crimes_wide_theft_sp <- tract_aggregated_theft_sp %>%
+  mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = crimes_per_1000) %>%
+  mutate(freeman = as.factor(case_when(canGent == 0 ~ "0", 
+                             canGent == 1 & freeman == "0" ~ "1", 
+                             canGent == 1 & freeman == "1" ~ "2")),
+         ding = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & ding == "0" ~ "1", 
+                             canGent == 1 & ding == "1" ~ "2")),
+         pew = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & pew == "0" ~ "1", 
+                             canGent == 1 & pew == "1" ~ "2")))
+
+crimes_wide_theft_sp$canGent_gentrified <- relevel(crimes_wide_theft_sp$canGent_gentrified, ref = "1")
+crimes_wide_theft_sp$freeman <- relevel(crimes_wide_theft_sp$freeman, ref = "1")
+crimes_wide_theft_sp$ding <- relevel(crimes_wide_theft_sp$ding, ref = "1")
+crimes_wide_theft_sp$pew <- relevel(crimes_wide_theft_sp$pew, ref = "1")
+```
+
+```{r}
+sp1_theft = glm(`2019` ~ canGent_gentrified + `2015` + population_2010, data = crimes_wide_theft_sp, family = "poisson")
+summary(sp1_violent)
+
+sp2_theft = glm(`2019` ~  ding + `2015` + population_2010, data = crimes_wide_theft_sp, family = "poisson")
+summary(sp2_violent)
+
+sp3_theft = glm(`2019` ~  pew + `2015` + population_2010, data = crimes_wide_theft_sp, family = "poisson")
+summary(sp3_theft)
+```
+
+Auto theft in Saint Paul
+
+```{r}
+crimes_wide_autotheft_sp <- tract_aggregated_auto_theft_sp %>%
+  mutate(crimes_per_1000 = round(crimes_per_1000, 0)) %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = crimes_per_1000) %>%
+  mutate(freeman = as.factor(case_when(canGent == 0 ~ "0", 
+                             canGent == 1 & freeman == "0" ~ "1", 
+                             canGent == 1 & freeman == "1" ~ "2")),
+         ding = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & ding == "0" ~ "1", 
+                             canGent == 1 & ding == "1" ~ "2")),
+         pew = as.factor(case_when(canGent == "0" ~ "0", 
+                             canGent == 1 & pew == "0" ~ "1", 
+                             canGent == 1 & pew == "1" ~ "2")))
+
+crimes_wide_autotheft_sp$canGent_gentrified <- relevel(crimes_wide_autotheft_sp$canGent_gentrified, ref = "1")
+crimes_wide_autotheft_sp$freeman <- relevel(crimes_wide_autotheft_sp$freeman, ref = "1")
+crimes_wide_autotheft_sp$ding <- relevel(crimes_wide_autotheft_sp$ding, ref = "1")
+crimes_wide_autotheft_sp$pew <- relevel(crimes_wide_autotheft_sp$pew, ref = "1")
+```
+
+```{r}
+sp1_autotheft = glm(`2019` ~ canGent_gentrified + `2015` + population_2010, data = crimes_wide_autotheft_sp, family = "poisson")
+summary(sp1_violent)
+
+sp2_autotheft = glm(`2019` ~  ding + `2015` + population_2010, data = crimes_wide_autotheft_sp, family = "poisson")
+summary(sp2_violent)
+
+sp3_autotheft = glm(`2019` ~  pew + `2015` + population_2010, data = crimes_wide_autotheft_sp, family = "poisson")
+summary(sp3_autotheft)
+```
+
+
+

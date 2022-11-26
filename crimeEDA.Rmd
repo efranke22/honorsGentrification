@@ -19,7 +19,7 @@ library(PrettyCols)
 library(ggmap)
 library(sf)
 
-load('Data/gent_clean.RData')
+load('Data/tractData/cleaned/gent_clean.RData')
 
 #Minneapolis
 load('Data/CrimeCleaned/tract_aggregated_minneapolis.RData')
@@ -43,95 +43,84 @@ Explore year distribution of crimes in Minneapolis.
 
 ```{r}
 tract_aggregated %>%
-  filter(year == 2010) %>%
-  ggplot()+
-  geom_sf(aes(fill = crimes_per_1000d))+
-  theme_classic()+
-  scale_fill_natparks_d(name = "Olympic")+
-  labs(title = "Crimes per 1000 residents in 2010 \nby Minneapolis census tract", fill = "")+
-  theme(plot.title.position = "plot", 
-        plot.title = element_text(family = "mono", size = 10), 
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(), 
-        axis.line = element_blank())
-
-tract_aggregated %>%
-  filter(year == 2021) %>%
-  ggplot()+
-  geom_sf(aes(fill = crimes_per_1000d))+
-  theme_classic()+
-  scale_fill_natparks_d(name = "Olympic")+
-  labs(title = "Crimes per 1000 residents in 2021 \nby Minneapolis census tract", fill = "")+
-  theme(plot.title.position = "plot", 
-        plot.title = element_text(family = "mono", size = 10), 
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(), 
-        axis.line = element_blank())
-
-tract_aggregated_violent %>%
-  filter(year %in% c(2010, 2021)) %>%
-  mutate(crimes_per_1000 = round((n/population_2020) * 1000, 0),
-         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=2 ~ "0.1-2", 
-                                      crimes_per_1000 >2 & crimes_per_1000 <= 4 ~ "3-4", 
-                                      crimes_per_1000 > 4 & crimes_per_1000 <= 7 ~ "5-7", 
-                                      crimes_per_1000 >7 & crimes_per_1000 <= 11 ~ "8-11", 
-                                      TRUE ~ "12+")),
-         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0.1-2", "3-4", "5-7", "8-11", "12+"))) %>%
+  filter(year %in% c(2010, 2019)) %>%
   ggplot()+
   geom_sf(aes(fill = crimes_per_1000d))+
   theme_classic()+
   facet_wrap(~year)+
   scale_fill_natparks_d(name = "Olympic")+
-  labs(title = "Crimes per 1000 residents in 2021 \nby Minneapolis census tract", fill = "")+
+  labs(title = "Crimes per 1000 residents by Minneapolis census tract", fill = "")+
   theme(plot.title.position = "plot", 
         plot.title = element_text(family = "mono", size = 10), 
         axis.text = element_blank(), 
         axis.ticks = element_blank(), 
         axis.line = element_blank())
-```
-
-```{r}
-ggplot() +
-  geom_sf(data=tract_aggregated %>% filter(year <= 2016), aes(fill=crimes_per_1000d), lwd=0.4, alpha =0.8)+
-  theme_classic()+
-  facet_wrap(~year)+
-  scale_fill_natparks_d(name = "Olympic")+
-  labs(title = "Crimes per 1000 people by Minneapolis census tract 2022", fill = "")+
-  theme(plot.title.position = "plot", 
-        plot.title = element_text(family = "mono", size = 9), 
-        axis.line = element_blank(), 
-        axis.text = element_blank(), 
-        axis.ticks = element_blank())
-
-ggplot() +
-  geom_sf(data=tract_aggregated %>% filter(year > 2016), aes(fill=crimes_per_1000d), lwd=0.4, alpha =0.8)+
-  theme_classic()+
-  facet_wrap(~year)+
-  scale_fill_natparks_d(name = "Olympic")+
-  labs(title = "Crimes per 1000 people by Minneapolis census tract 2022", fill = "")+
-  theme(plot.title.position = "plot", 
-        plot.title = element_text(family = "mono", size = 9), 
-        axis.line = element_blank(), 
-        axis.text = element_blank(), 
-        axis.ticks = element_blank())
 ```
 
 Look at overall trend in number of crimes per year.
 
 ```{r}
-tract_points %>%
+minn_annual <- tract_points %>%
+  st_drop_geometry() %>%
   count(year) %>%
-  ggplot(aes(x=year, y=n))+
+  mutate(city = "Minneapolis") %>%
+  filter(year < 2022)
+
+sp_annual <- tract_points_sp %>%
+  st_drop_geometry() %>%
+  count(year) %>%
+  mutate(city = "Saint Paul")
+
+bind_rows(minn_annual, sp_annual) %>%
+  ggplot(aes(x=year, y=n, color = city))+
   geom_point()+
   geom_line()+
   ylim(c(5000, 25000))+
+    scale_color_manual(values = c("navy", "goldenrod3"))+
   scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018, 2020, 2022))+
   theme_classic()+
-  labs(x="Year", y= "", title = "Number of Recorded Minneapolis Crimes by Year")+
+  labs(x="Year", y= "Number of crimes", title = "Annual Crimes in the Twin Cities", color = "City")+
   theme(plot.title.position = "plot", 
-        plot.title = element_text(family = "mono", size =10), 
-        axis.title.x = element_text(family = "mono"))
+        plot.title = element_text(family = "mono", size =12), 
+        axis.title = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono"), 
+        legend.text = element_text(family = "mono"), 
+        axis.text = element_text(family = "mono"))
 ```
+
+Spaghetti plot
+```{r}
+sp_annual_tract <- tract_points_sp %>%
+  st_drop_geometry() %>%
+  count(year, tractmod) %>%
+  filter(year != 2022, year != 2014) %>%
+  mutate(City = "Saint Paul") %>%
+  rename("tract" = "tractmod")
+
+minn_annual_tract <- tract_points %>%
+  st_drop_geometry() %>%
+  count(year, tract) %>%
+  filter(year != 2022) %>%
+  mutate(City = "Minneapolis")
+
+bind_rows(minn_annual_tract, sp_annual_tract) %>%
+  filter(tract != 1044, tract !=1261) %>%
+  ggplot(aes(x=year, y=n, group = tract))+
+  geom_line(color = "gray")+
+  scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018, 2020, 2022))+
+  facet_wrap(~City, scales = "free_x")+
+  theme_classic()+
+  labs(x="Year", y= "Recorded crimes", title = "Annual recorded crimes by census tract")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size =12),
+        axis.text = element_text(family = "mono"),
+        axis.title = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono"), 
+        legend.text = element_text(family = "mono"), 
+        strip.background = element_blank(), 
+        strip.text = element_text(family = "mono", size = 10))
+```
+
 
 Create groups of offenses and plot trends over years. \
 - Theft: THEFT, BIKETF, TFPER, THFTSW, PKGTHEFT \
@@ -166,7 +155,7 @@ tract_points %>%
 
 Understanding crimes by tract gentrification category. 
 
-```{r}
+```{r, eval=FALSE}
 #number of census tracts by canGent and typical population size
 tract_aggregated %>%
   distinct(tract, canGent, population_2010, freeman) %>%
@@ -231,7 +220,7 @@ tract_points %>%
 
 Explore year distribution of crimes in Minneapolis.
 
-```{r}
+```{r, eval=FALSE}
 ggplot() +
   geom_sf(data=tract_aggregated_sp, aes(fill=crimes_per_1000d), lwd=0.4, alpha =0.8)+
   theme_classic()+
@@ -247,7 +236,7 @@ ggplot() +
 
 Look at overall trend in number of crimes per year.
 
-```{r}
+```{r, eval=FALSE}
 tract_points_sp %>%
   count(year) %>%
   ggplot(aes(x=year, y=n))+

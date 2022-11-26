@@ -46,7 +46,7 @@ acs2020metro %>%
 ```
 
 Tracts that break into 2 or 3:
-- Hennepin 38 in 2010 --> 38.01, 38.02 in 2020 \
+- Hennepin 38 in 2010 --> 38.01, 38.02 in 2020 --> Minneapolis city limits
 - Hennepin 202 --> 202.01, 202.02 \
 - Hennepin 232 --> 232.01, 232.02 \
 - Hennepin 234 --> 234.01, 234.02 \
@@ -68,21 +68,21 @@ Tracts that break into 2 or 3:
 - Hennepin 269.09	--> 269.11, 269.12 \
 - Hennepin 272.01 --> 272.04, 272.05 \
 - Hennepin 277.00 --> 277.01, 277.02, 277.03 \
-- Ramsey 342.02 --> 342.03, 342.04 \
-- Ramsey 376.02 --> 376.03, 376.04 \
+- Ramsey 342.02 --> 342.03, 342.04 --> SP city limits 
+- Ramsey 376.02 --> 376.03, 376.04 --> SP city limits 
 - Ramsey 401.00 --> 401.01, 401.02 \
 - Ramsey 406.04 --> 406.05, 406.06 \
 - Ramsey 407.03 --> 407.08, 407.09 \
-- Ramsey 430.00 --> 430.01, 430.02 \
-- Hennepin 1040.00 --> 1040.01, 1040.02 \
-- Hennepin 1048.00 --> 1048.01, 1048.02 \
-- Hennepin 1049.00 --> 1049.01, 1049.02 \
-- Hennepin 1261.00 --> 1261.01, 1261.02 \
-- Hennepin 1262.00 --> 1262.01, 1262.02 \
+- Ramsey 430.00 --> 430.01, 430.02 --> SP city limits
+- Hennepin 1040.00 --> 1040.01, 1040.02 --> Minneapolis city limits
+- Hennepin 1048.00 --> 1048.01, 1048.02 --> Minneapolis city limits
+- Hennepin 1049.00 --> 1049.01, 1049.02 --> Minneapolis city limits
+- Hennepin 1261.00 --> 1261.01, 1261.02 --> Minneapolis city limits
+- Hennepin 1262.00 --> 1262.01, 1262.02 --> Minneapolis city limits
 
 Tracts that merge in 2020:
 - Hennepin 249.01, 249.02 --> 249.04 in 2020 \
-- Hennepin 1023.00 + 1029.00 --> 1263.00 in 2020 \
+- Hennepin 1023.00 + 1029.00 --> 1263.00 in 2020 --> Minneapolis city limits
 
 Tracts that change borders
 - Ramsey 408.02, 408.03 --> 408.04, 408.05 (tract borders change) \

@@ -107,6 +107,7 @@ Understand the distribution of gentrified tracts for the different methods.
 
 ```{r}
 gent_clean %>%
+  filter(canGent_gentrified != "0") %>%
   count(freeman, ding, pew, twoGentrified)
 ```
 
@@ -129,10 +130,10 @@ gent_clean %>%
   theme(axis.line = element_blank(), 
         axis.text = element_blank(), 
         axis.ticks = element_blank(),
-        #legend.title = element_markdown(family = "mono"),
-        plot.title.position = "plot")+
-        #plot.title = element_markdown(family = "mono", size = 10))+
-  #scale_fill_pretty_d(name = "Autumn", direction = -1)+
+        legend.title = element_markdown(family = "mono"),
+        plot.title.position = "plot",
+        legend.text = element_markdown(family = "mono"),
+        plot.title = element_markdown(family = "mono", size = 12))+
   scale_fill_manual(values = c("#1B3A54", "#800000", "#CD0F75"))+
   annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
   guides(color = guide_legend(override.aes = list(size=2,alpha=1)))

@@ -30,8 +30,6 @@ load("Data/tractData/cleaned/final_condensed_msp.RData")
 load("Data/tractData/cleaned/final_condensed.RData")
 ```
 
-## Create organized table of 2010 census tract information
-
 
 ## Methods for defining gentrifiable tracts
 
@@ -56,6 +54,7 @@ Professor Lance Freeman (2005): all three measurements below must be met:
 # find metro area mean income
 final_condensed %>%
   mutate(propBuiltSince1990 = (builtSince2005_2010 + built2000to2004_2010 + built1990to1999_2010)/((builtSince2005_2010 + built2000to2004_2010 + built1990to1999_2010 + built1980to1989_2010 + built1970to1979_2010 + built1960to1969_2010 + built1950to1959_2010 + built1940to1949_2010+ builtPre1940_2010))) %>%
+  ungroup() %>%
   summarize(medianMetroInc = median(medianIncome_2010), 
             medianHousing = median(propBuiltSince1990))
 
@@ -120,6 +119,19 @@ gentrifiable %>%
   annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
   guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
 ```
+
+Understand number of gentrifiable census tracts by research method and city.
+
+```{r}
+gentrifiable %>%
+  ungroup() %>%
+  count(Freeman, Ding, Bates, canGent)
+
+gentrifiable %>%
+  ungroup() %>%
+  count(city, canGent)
+```
+
 
 Write the gentrifiable file to the Data folder for future use. 
 
