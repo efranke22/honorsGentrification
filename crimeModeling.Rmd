@@ -39,31 +39,50 @@ crimes_wide_minn <- tract_aggregated %>%
          pew = as.factor(case_when(canGent == "0" ~ "0", 
                              canGent == 1 & pew == "0" ~ "1", 
                              canGent == 1 & pew == "1" ~ "2")),
-         city = "Minneapolis")
-
-crimes_wide_minn$canGent_gentrified <- relevel(crimes_wide_minn$canGent_gentrified, ref = "1")
-crimes_wide_minn$freeman <- relevel(crimes_wide_minn$freeman, ref = "1")
-crimes_wide_minn$ding <- relevel(crimes_wide_minn$ding, ref = "1")
-crimes_wide_minn$pew <- relevel(crimes_wide_minn$pew, ref = "1")
+         city = "Minneapolis") %>%
+  rename("status" = canGent_gentrified) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
 ```
 
 ```{r}
-minn1 = glm(`2019` ~ canGent_gentrified + avg2010to2011 + population_2010, data = crimes_wide_minn, family = "poisson")
+crimes_freeman <- crimes_wide_minn %>%
+  select(`2019`, freeman, population_2010, avg2010to2011) %>%
+  rename("status" = freeman) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
+
+crimes_ding <- crimes_wide_minn %>%
+  select(`2019`, ding, population_2010, avg2010to2011) %>%
+  rename("status" = ding) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
+
+crimes_pew <- crimes_wide_minn %>%
+  select(`2019`, pew, population_2010, avg2010to2011) %>%
+  rename("status" = pew) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
+  
+  
+minn1 = glm(`2019` ~ status + avg2010to2011 + population_2010, data = crimes_wide_minn, family = "poisson")
 summary(minn1)
 
-minn2 = glm(`2019` ~  freeman + avg2010to2011 + population_2010, data = crimes_wide_minn, family = "poisson")
+minn2 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = crimes_freeman, family = "poisson")
 summary(minn2)
 
-minn3 = glm(`2019` ~  ding + avg2010to2011 + population_2010, data = crimes_wide_minn, family = "poisson")
+minn3 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = crimes_ding, family = "poisson")
 summary(minn3)
 
-minn4 = glm(`2019` ~  pew + avg2010to2011 + population_2010, data = crimes_wide_minn, family = "poisson")
+minn4 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = crimes_pew, family = "poisson")
 summary(minn4)
-```
 
-```{r}
-crimes_wide_minn %>%
-  count(freeman, ding, pew, canGent_gentrified) 
+library(stargazer)
+stargazer(minn1, minn2, minn3, minn4, title="Table 1: Minneapolis Overall Crime Models", type="latex", align=TRUE, dep.var.labels = "2019 crime rate", covariate.labels=c("Cannot Gentrify","Gentrified", "2010-2011 Crime Rate","2010 Population"), column.labels = c("Combined", "Freeman", "Ding", "PEW"), no.space=TRUE, report=("vc*p"))
 ```
 
 Violent crimes 
@@ -83,26 +102,48 @@ crimes_wide_minn_violent <- tract_aggregated_violent %>%
          pew = as.factor(case_when(canGent == "0" ~ "0", 
                              canGent == 1 & pew == "0" ~ "1", 
                              canGent == 1 & pew == "1" ~ "2")),
-         city = "Minneapolis")
-
-crimes_wide_minn_violent$canGent_gentrified <- relevel(crimes_wide_minn_violent$canGent_gentrified, ref = "1")
-crimes_wide_minn_violent$freeman <- relevel(crimes_wide_minn_violent$freeman, ref = "1")
-crimes_wide_minn_violent$ding <- relevel(crimes_wide_minn_violent$ding, ref = "1")
-crimes_wide_minn_violent$pew <- relevel(crimes_wide_minn_violent$pew, ref = "1")
+         city = "Minneapolis") %>%
+  rename("status" = canGent_gentrified) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
 ```
 
 ```{r}
-minn_violent_1 = glm(`2019` ~ canGent_gentrified + avg2010to2011 + population_2010, data = crimes_wide_minn_violent, family = "poisson")
+mn_violent_freeman <- crimes_wide_minn_violent %>%
+  select(`2019`, freeman, population_2010, avg2010to2011) %>%
+  rename("status" = freeman) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
+
+mn_violent_ding <- crimes_wide_minn_violent %>%
+  select(`2019`, ding, population_2010, avg2010to2011) %>%
+  rename("status" = ding) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
+
+mn_violent_pew <- crimes_wide_minn_violent %>%
+  select(`2019`, pew, population_2010, avg2010to2011) %>%
+  rename("status" = pew) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
+
+minn_violent_1 = glm(`2019` ~ status + avg2010to2011 + population_2010, data = crimes_wide_minn_violent, family = "poisson")
 summary(minn_violent_1)
 
-minn_violent_2 = glm(`2019` ~  freeman + avg2010to2011 + population_2010, data = crimes_wide_minn_violent, family = "poisson")
+minn_violent_2 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = mn_violent_freeman, family = "poisson")
 summary(minn_violent_2)
 
-minn_violent_3 = glm(`2019` ~  ding + avg2010to2011 + population_2010, data = crimes_wide_minn_violent, family = "poisson")
+minn_violent_3 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = mn_violent_ding, family = "poisson")
 summary(minn_violent_3)
 
-minn_violent_4 = glm(`2019` ~  pew + avg2010to2011 + population_2010, data = crimes_wide_minn_violent, family = "poisson")
+minn_violent_4 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = mn_violent_pew, family = "poisson")
 summary(minn_violent_4)
+
+stargazer(minn_violent_1, minn_violent_2, minn_violent_3, minn_violent_4, title="Table 2: Minneapolis Violent Crime Models", type="latex", align=TRUE, dep.var.labels = "2019 violent crime rate", covariate.labels=c("Cannot Gentrify","Gentrified", "2010-2011 Violent Crime Rate","2010 Population"), column.labels = c("Combined", "Freeman", "Ding", "PEW"), no.space=TRUE, report=("vc*p"))
 ```
 
 Theft 
@@ -122,26 +163,49 @@ crimes_wide_minn_theft <- tract_aggregated_theft %>%
          pew = as.factor(case_when(canGent == "0" ~ "0", 
                              canGent == 1 & pew == "0" ~ "1", 
                              canGent == 1 & pew == "1" ~ "2")),
-         city = "Minneapolis")
+         city = "Minneapolis") %>%
+    rename("status" = canGent_gentrified) %>%
+    mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
 
-crimes_wide_minn_theft$canGent_gentrified <- relevel(crimes_wide_minn_theft$canGent_gentrified, ref = "1")
-crimes_wide_minn_theft$freeman <- relevel(crimes_wide_minn_theft$freeman, ref = "1")
-crimes_wide_minn_theft$ding <- relevel(crimes_wide_minn_theft$ding, ref = "1")
-crimes_wide_minn_theft$pew <- relevel(crimes_wide_minn_theft$pew, ref = "1")
 ```
 
 ```{r}
-minn_theft_1 = glm(`2019` ~ canGent_gentrified + avg2010to2011 + population_2010, data = crimes_wide_minn_theft, family = "poisson")
+mn_theft_freeman <- crimes_wide_minn_theft %>%
+  select(`2019`, freeman, population_2010, avg2010to2011) %>%
+  rename("status" = freeman) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
+
+mn_theft_ding <- crimes_wide_minn_theft %>%
+  select(`2019`, ding, population_2010, avg2010to2011) %>%
+  rename("status" = ding) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
+
+mn_theft_pew <- crimes_wide_minn_theft %>%
+  select(`2019`, pew, population_2010, avg2010to2011) %>%
+  rename("status" = pew) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
+
+minn_theft_1 = glm(`2019` ~ status + avg2010to2011 + population_2010, data = crimes_wide_minn_theft, family = "poisson")
 summary(minn_theft_1)
 
-minn_theft_2 = glm(`2019` ~  freeman + avg2010to2011 + population_2010, data = crimes_wide_minn_theft, family = "poisson")
+minn_theft_2 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = mn_theft_freeman, family = "poisson")
 summary(minn_theft_2)
 
-minn_theft_3 = glm(`2019` ~  ding + avg2010to2011 + population_2010, data = crimes_wide_minn_theft, family = "poisson")
+minn_theft_3 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = mn_theft_ding, family = "poisson")
 summary(minn_theft_3)
 
-minn_theft_4 = glm(`2019` ~  pew + avg2010to2011 + population_2010, data = crimes_wide_minn_theft, family = "poisson")
+minn_theft_4 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = mn_theft_pew, family = "poisson")
 summary(minn_theft_4)
+
+stargazer(minn_theft_1, minn_theft_2, minn_theft_3, minn_theft_4, title="Minneapolis Theft Models", type="latex", align=TRUE, dep.var.labels = "2019 theft rate", covariate.labels=c("Cannot Gentrify","Gentrified", "2010-2011 Theft Rate","2010 Population"), column.labels = c("Combined", "Freeman", "Ding", "PEW"), no.space=TRUE, report=("vc*p"))
 ```
 
 Auto theft
@@ -161,26 +225,44 @@ crimes_wide_minn_auto_theft <- tract_aggregated_auto_theft %>%
          pew = as.factor(case_when(canGent == "0" ~ "0", 
                              canGent == 1 & pew == "0" ~ "1", 
                              canGent == 1 & pew == "1" ~ "2")),
-         city = "Minneapolis")
-
-crimes_wide_minn_auto_theft$canGent_gentrified <- relevel(crimes_wide_minn_auto_theft$canGent_gentrified, ref = "1")
-crimes_wide_minn_auto_theft$freeman <- relevel(crimes_wide_minn_auto_theft$freeman, ref = "1")
-crimes_wide_minn_auto_theft$ding <- relevel(crimes_wide_minn_auto_theft$ding, ref = "1")
-crimes_wide_minn_auto_theft$pew <- relevel(crimes_wide_minn_auto_theft$pew, ref = "1")
+         city = "Minneapolis")  %>%
+  rename("status" = canGent_gentrified) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
 ```
 
 ```{r}
-minn_auto_theft_1 = glm(`2019` ~ canGent_gentrified + avg2010to2011 + population_2010, data = crimes_wide_minn_auto_theft, family = "poisson")
-summary(minn_auto_theft_1)
+mn_auto_freeman <- crimes_wide_minn_auto_theft %>%
+  select(`2019`, freeman, population_2010, avg2010to2011) %>%
+  rename("status" = freeman) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
 
-minn_auto_theft_2 = glm(`2019` ~  freeman + avg2010to2011 + population_2010, data = crimes_wide_minn_auto_theft, family = "poisson")
-summary(minn_auto_theft_2)
+mn_auto_ding <- crimes_wide_minn_auto_theft %>%
+  select(`2019`, ding, population_2010, avg2010to2011) %>%
+  rename("status" = ding) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
 
-minn_auto_theft_3 = glm(`2019` ~  ding + avg2010to2011 + population_2010, data = crimes_wide_minn_auto_theft, family = "poisson")
-summary(minn_auto_theft_3)
+mn_auto_pew <- crimes_wide_minn_auto_theft %>%
+  select(`2019`, pew, population_2010, avg2010to2011) %>%
+  rename("status" = pew) %>%
+  mutate(status = case_when(status == "0" ~ "CannotGentrify", 
+                            status == "1" ~ "CanGentrify", 
+                            TRUE ~ "Gentrified"))
 
-minn_auto_theft_4 = glm(`2019` ~  pew + avg2010to2011 + population_2010, data = crimes_wide_minn_auto_theft, family = "poisson")
-summary(minn_auto_theft_4)
+minn_au1 = glm(`2019` ~ status+ avg2010to2011 + population_2010, data = crimes_wide_minn_auto_theft, family = "poisson")
+
+minn_au2 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = mn_auto_freeman, family = "poisson")
+
+minn_au3 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = mn_auto_ding, family = "poisson")
+
+minn_au4 = glm(`2019` ~  status + avg2010to2011 + population_2010, data = mn_auto_pew, family = "poisson")
+
+stargazer(minn_au1, minn_au2, minn_au3, minn_au4, title="Minneapolis Auto Theft Models", type="latex", align=TRUE, dep.var.labels = "2019 auto theft rate", covariate.labels=c("Cannot Gentrify","Gentrified", "2010-2011 Auto Theft Rate","2010 Population"), column.labels = c("Combined", "Freeman", "Ding", "PEW"), no.space=TRUE, report=("vc*p"))
 ```
 
 ## Saint Paul modeling
