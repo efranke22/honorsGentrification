@@ -36,11 +36,13 @@ Male bachelors degrees for over 25: P148C008
 Female bachelors degrees for over 25: P148C016
 Year structure built: H034001 - H034010
 Tenure: H007001 - H007003 total owned rented
+Median home value of all owner occupied housing units H085001
+Median contract rent H056001
 
 ```{r}
 variables2000 <- load_variables(2000, "sf3")
 
-census2000 <- get_decennial(year = 2000, state = "MN", geography = "tract", variables = c("P001001", "P053001", "P037015", "P037032", "H034001", "H034002", "H034003", "H034004", "H034005", "H034006", "H034007", "H034008", "H034009", "H034010", "H007001", "H007002", "H007003", "P006002"), output = 'wide') %>%
+census2000 <- get_decennial(year = 2000, state = "MN", geography = "tract", variables = c("P001001", "P053001", "P037015", "P037032", "H034001", "H034002", "H034003", "H034004", "H034005", "H034006", "H034007", "H034008", "H034009", "H034010", "H007001", "H007002", "H007003", "P006002", "H085001", "H056001"), output = 'wide') %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey"))%>%
                mutate(tract = word(NAME, 3),
                       tract = str_remove(tract, ","),
@@ -63,7 +65,9 @@ census2000 <- get_decennial(year = 2000, state = "MN", geography = "tract", vari
          "tenureTotal" = "H007001", 
          "tenureOwned" = "H007002", 
          "tenureRented" = "H007003",
-         "totalWhite" = "P006002")
+         "totalWhite" = "P006002", 
+         "medianHomeValue" = "H085001", 
+         "medianContractRent" = "H056001")
 ```
 
 Get similar variables for the 2010 census. 
@@ -74,7 +78,7 @@ acsvariables2010 <- load_variables(year = 2010, dataset = "acs5")
 
 # Select variables of interest from 2010 ACS
 census2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c(	
-"B01003_001", "B06011_001", "B23006_023", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_002"), output = 'wide') %>%
+"B01003_001", "B06011_001", "B23006_023", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_002", "B25077_001"), output = 'wide') %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey"))%>%
                mutate(tract = word(NAME, 3),
                       tract = str_remove(tract, ","),
@@ -94,11 +98,11 @@ census2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables 
                       "built1940to1949" = "B25034_009E", 
                       "builtPre1940" = "B25034_010E", 
                       "medContractRent" = "B25058_001E", 
-                      "medGrossRent" = "B25064_001E",
                       "tenureTotal" = "B25003_001E", 
                       "tenureOwned" = "B25003_002E", 
                       "tenureRented" = "B25003_003E",
-                      "totalWhite" = "B02001_002E") %>%
+                      "totalWhite" = "B02001_002E", 
+                      "medianHomeValue"= "B25077_001E") %>%
   select(-contains("_"))
 ```
 
@@ -106,7 +110,7 @@ Finally, we can do the same thing for the 2020 census.
 
 ```{r}
 census2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c(	
-"B01003_001", "B06011_001", "B23006_023", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_002"), output = 'wide') %>%
+"B01003_001", "B06011_001", "B23006_023", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_002", "B25077_001"), output = 'wide') %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey"))%>%
                mutate(tract = word(NAME, 3),
                       tract = str_remove(tract, ","),
@@ -126,11 +130,11 @@ census2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables 
                       "built1940to1949" = "B25034_009E", 
                       "builtPre1940" = "B25034_010E", 
                       "medContractRent" = "B25058_001E", 
-                      "medGrossRent" = "B25064_001E",
                       "tenureTotal" = "B25003_001E", 
                       "tenureOwned" = "B25003_002E", 
                       "tenureRented" = "B25003_003E",
-                      "totalWhite" = "B02001_002E") %>%
+                      "totalWhite" = "B02001_002E", 
+                      "medianHomeValue"= "B25077_001E") %>%
   select(-contains("_"))
 ```
 
