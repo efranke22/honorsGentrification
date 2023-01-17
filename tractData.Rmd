@@ -28,15 +28,53 @@ library(sf)
 census_api_key("f0d9e7b9eb0a91da1b9d33277cf20e264c19e197", install = TRUE, overwrite=TRUE)
 ```
 
-The beginning of this study is 2010. Understand what variables are available through the American Community Survey in 2010 (which represents the 2006-2010). 
+Start with information on the census tracts in Hennepin and Ramsey County in 2000 by gathering relevant information from the 2000 census.
+
+Total population: P001001
+Median household income in 1999: P053001
+Male bachelors degrees for over 25: P148C008
+Female bachelors degrees for over 25: P148C016
+Year structure built: H034001 - H034010
+Tenure: H007001 - H007003 total owned rented
+
+```{r}
+variables2000 <- load_variables(2000, "sf3")
+
+census2000 <- get_decennial(year = 2000, state = "MN", geography = "tract", variables = c("P001001", "P053001", "P037015", "P037032", "H034001", "H034002", "H034003", "H034004", "H034005", "H034006", "H034007", "H034008", "H034009", "H034010", "H007001", "H007002", "H007003", "P006002"), output = 'wide') %>%
+  filter(word(NAME, 4) %in% c("Hennepin", "Ramsey"))%>%
+               mutate(tract = word(NAME, 3),
+                      tract = str_remove(tract, ","),
+                      county = word(NAME, 4)) %>%
+               select(-NAME) %>%
+  mutate(bachelors = P037015 + P037032) %>%
+  select(-P037015, -P037032) %>%
+  rename("population" = "P001001", 
+         "medianIncome" = "P053001",
+         "totalStructure" = "H034001", 
+         "built1999toMar2000" = "H034002",
+         "built1995to1998" = "H034003", 
+         "built1990to1994" = "H034004", 
+         "built1980to1989" = "H034005", 
+         "built1970to1979" = "H034006", 
+         "built1960to1969" = "H034007", 
+         "built1950to1959" = "H034008", 
+         "built1940to1949" = "H034009", 
+         "builtPre1940" = "H034010",
+         "tenureTotal" = "H007001", 
+         "tenureOwned" = "H007002", 
+         "tenureRented" = "H007003",
+         "totalWhite" = "P006002")
+```
+
+Get similar variables for the 2010 census. 
 
 ```{r}
 # View variables from 2006 - 2010 ACS (for additional income/education information)
 acsvariables2010 <- load_variables(year = 2010, dataset = "acs5") 
 
 # Select variables of interest from 2010 ACS
-acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c(	
-"B01003_001", "B06011_001", "B19313_001", "B23006_023", "B25035_001", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_001", "B02001_002", "B06001_005", "B06001_006", "B06001_007", "B06001_008", "B06001_009", "B06001_010"), output = 'wide') %>%
+census2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c(	
+"B01003_001", "B06011_001", "B23006_023", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_002"), output = 'wide') %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey"))%>%
                mutate(tract = word(NAME, 3),
                       tract = str_remove(tract, ","),
@@ -44,9 +82,7 @@ acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c
                select(-NAME) %>%
                rename("population" = "B01003_001E", 
                       "medianIncome" = "B06011_001E", 
-                      "aggregateIncome" = "B19313_001E", 
-                      "bachelors25to64" = "B23006_023E",
-                      "medYrStructureBuilt" = "B25035_001E", 
+                      "bachelors" = "B23006_023E",
                       "totalStructure" = "B25034_001E", 
                       "builtSince2005" = "B25034_002E", 
                       "built2000to2004" = "B25034_003E", 
@@ -62,54 +98,15 @@ acs2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c
                       "tenureTotal" = "B25003_001E", 
                       "tenureOwned" = "B25003_002E", 
                       "tenureRented" = "B25003_003E",
-                      "totalRace" = "B02001_001E", 
-                      "totalWhite" = "B02001_002E",
-                      "pop25to34" = "B06001_005E",
-                      "pop35to44" = "B06001_006E",
-                      "pop45to54" = "B06001_007E",
-                      "pop55to59" = "B06001_008E",
-                      "pop60to61" = "B06001_009E",
-                      "pop62to64" = "B06001_010E",
-                      "populationMoe" = "B01003_001M",
-                      "medIncMoe" = "B06011_001M", 
-                      "aggIncMoe" = "B19313_001M", 
-                      "bachelors25to64Moe" = "B23006_023M",
-                      "medYrStructureBuiltMoe" = "B25035_001M", 
-                      "totalStructureMoe" = "B25034_001M", 
-                      "builtSince2005Moe" = "B25034_002M", 
-                      "built2000to2004Moe" = "B25034_003M", 
-                      "built1990to1999Moe" = "B25034_004M", 
-                      "built1980to1989Moe" = "B25034_005M", 
-                      "built1970to1979Moe" = "B25034_006M", 
-                      "built1960to1969Moe" = "B25034_007M", 
-                      "built1950to1959Moe" = "B25034_008M", 
-                      "built1940to1949Moe" = "B25034_009M", 
-                      "builtPre1940Moe" = "B25034_010M", 
-                      "medContractRentMoe" = "B25058_001M", 
-                      "medGrossRentMoe" = "B25064_001M", 
-                      "medianHomeValue" = "B25107_001E", 
-                      "medianHomevalueMoe" = "B25107_001M", 
-                      "tenureTotalMoe" = "B25003_001M", 
-                      "tenureOwnedMoe" = "B25003_002M", 
-                      "tenureRentedMoe" = "B25003_003M", 
-                      "totalRaceMoe" = "B02001_001M", 
-                      "totalWhiteMoe" = "B02001_002M", 
-                      "pop25to34Moe" = "B06001_005M",
-                      "pop35to44Moe" = "B06001_006M",
-                      "pop45to54Moe" = "B06001_007M",
-                      "pop55to59Moe" = "B06001_008M",
-                      "pop60to61Moe" = "B06001_009M",
-                      "pop62to64Moe" = "B06001_010M") %>%
-  mutate(total25to64 = pop25to34 + pop35to44 + pop45to54 + pop55to59 + pop60to61 + pop62to64) %>%
-  select(-pop25to34, -pop35to44, -pop45to54, -pop55to59, -pop60to61, -pop62to64, -pop25to34Moe, -pop35to44Moe, -pop45to54Moe, -pop55to59Moe, -pop60to61Moe, -pop62to64Moe)
+                      "totalWhite" = "B02001_002E") %>%
+  select(-contains("_"))
 ```
 
-Finally, we can do the same thing for the 2020 ACS. There is a decennial census for 2020 but the variables we selected from 2010 are not yet included in that dataset, so I just stuck with the ACS.
+Finally, we can do the same thing for the 2020 census.
 
 ```{r}
-# Select variables of interest from 2020 ACS
-acs2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c(	
-"B01003_001", "B06011_001", "B19313_001", "B23006_023", "B25058_001", "B25064_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_001", "B02001_002", "B06001_005", "B06001_006", "B06001_007", "B06001_008", "B06001_009", "B06001_010"), output = "wide") %>%
+census2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c(	
+"B01003_001", "B06011_001", "B23006_023", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25064_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_002"), output = 'wide') %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey"))%>%
                mutate(tract = word(NAME, 3),
                       tract = str_remove(tract, ","),
@@ -117,48 +114,32 @@ acs2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c
                select(-NAME) %>%
                rename("population" = "B01003_001E", 
                       "medianIncome" = "B06011_001E", 
-                      "aggregateIncome" = "B19313_001E", 
-                      "bachelors25to64" = "B23006_023E",
+                      "bachelors" = "B23006_023E",
+                      "totalStructure" = "B25034_001E", 
+                      "builtSince2005" = "B25034_002E", 
+                      "built2000to2004" = "B25034_003E", 
+                      "built1990to1999" = "B25034_004E", 
+                      "built1980to1989" = "B25034_005E", 
+                      "built1970to1979" = "B25034_006E", 
+                      "built1960to1969" = "B25034_007E", 
+                      "built1950to1959" = "B25034_008E", 
+                      "built1940to1949" = "B25034_009E", 
+                      "builtPre1940" = "B25034_010E", 
                       "medContractRent" = "B25058_001E", 
                       "medGrossRent" = "B25064_001E",
-                      "populationMoe" = "B01003_001M",
                       "tenureTotal" = "B25003_001E", 
                       "tenureOwned" = "B25003_002E", 
                       "tenureRented" = "B25003_003E",
-                      "totalRace" = "B02001_001E", 
-                      "totalWhite" = "B02001_002E",
-                      "pop25to34" = "B06001_005E",
-                      "pop35to44" = "B06001_006E",
-                      "pop45to54" = "B06001_007E",
-                      "pop55to59" = "B06001_008E",
-                      "pop60to61" = "B06001_009E",
-                      "pop62to64" = "B06001_010E",
-                      "medIncMoe" = "B06011_001M", 
-                      "aggIncMoe" = "B19313_001M", 
-                      "bachelors25to64Moe" = "B23006_023M",
-                      "medContractRentMoe" = "B25058_001M", 
-                      "medGrossRentMoe" = "B25064_001M", 
-                      "medianHomeValue" = "B25107_001E", 
-                      "medianHomevalueMoe" = "B25107_001M",
-                      "tenureTotalMoe" = "B25003_001M", 
-                      "tenureOwnedMoe" = "B25003_002M", 
-                      "tenureRentedMoe" = "B25003_003M", 
-                      "totalRaceMoe" = "B02001_001M", 
-                      "totalWhiteMoe" = "B02001_002M",
-                      "pop25to34Moe" = "B06001_005M",
-                      "pop35to44Moe" = "B06001_006M",
-                      "pop45to54Moe" = "B06001_007M",
-                      "pop55to59Moe" = "B06001_008M",
-                      "pop60to61Moe" = "B06001_009M",
-                      "pop62to64Moe" = "B06001_010M") %>%
-  mutate(total25to64 = pop25to34 + pop35to44 + pop45to54 + pop55to59 + pop60to61 + pop62to64) %>%
-  select(-pop25to34, -pop35to44, -pop45to54, -pop55to59, -pop60to61, -pop62to64, -pop25to34Moe, -pop35to44Moe, -pop45to54Moe, -pop55to59Moe, -pop60to61Moe, -pop62to64Moe)
+                      "totalWhite" = "B02001_002E") %>%
+  select(-contains("_"))
 ```
 
 Write ACS and decennial files to Data folder.
+
 ```{r, eval=FALSE}
-save(acs2010, file = 'Data/tractData/originalTidycensus/acs2010.RData')
-save(acs2020, file = "Data/tractData/originalTidycensus/acs2020.RData")
+save(census2000, file = 'Data/tractData/originalTidycensus/acs2000.RData')
+save(census2010, file = 'Data/tractData/originalTidycensus/acs2010.RData')
+save(census2020, file = "Data/tractData/originalTidycensus/acs2020.RData")
 ```
 
 
