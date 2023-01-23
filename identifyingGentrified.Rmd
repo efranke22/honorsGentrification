@@ -27,24 +27,9 @@ load("Data/tractData/cleaned/gentrifiable.RData")
 roads <- st_read("ShpData/tl_2019_27_prisecroads")
 ```
 
-## Methods for idenifying tracts that did gentrify
+## Ding's method for identifying census tracts that gentrified
 
-The Twin Cities paper identifies three research methods of defining gentrification.
-
-Freeman: both required \
-- change in the share of adults with college degrees is greater than the regional change \
-- tract experienced an increase in home values (in constant dollars).
-
-```{r}
-#regional change in share of adults with college degrees
-final_condensed %>%
-  ungroup() %>%
-  summarize(avg_propbachelors2010 = weighted.mean(bachelors25to64_2010/population_2010, population_2010), 
-         avg_propbachelors2020 = weighted.mean(bachelors25to64_2020/population_2020, population_2020), 
-         avg_change_bachelors = mean(avg_propbachelors2020 - avg_propbachelors2010, na.rm = TRUE))
-```
-
-Ding: \
+The tract must see a:
 - change in the share of adults with college degrees greater than the city-level change \
 - change in median rents above the citywide change OR \
 - change in median home value greater than the citywide change. \
@@ -53,62 +38,30 @@ Ding: \
 #citywide changes needed for Ding's method
 final_condensed_msp %>%
   group_by(county_2020) %>%
-  summarize(avg_propbachelors2010 = weighted.mean(bachelors25to64_2010/population_2010, population_2010), 
-         avg_propbachelors2020 = weighted.mean(bachelors25to64_2020/population_2020, population_2020),
+  summarize(avg_propbachelors2010 = weighted.mean(bachelors_2010/population_2010, population_2010), 
+         avg_propbachelors2020 = weighted.mean(bachelors_2020/population_2020, population_2020),
          avg_change_bachelors = mean(avg_propbachelors2020 - avg_propbachelors2010),
          avg_home_value_increase = mean((medianHomeValue_2020 - medianHomeValue_2010)/medianHomeValue_2010, na.rm = TRUE),
          avg_percent_rent_increase = mean((medContractRent_2020 - medContractRent_2010)/medContractRent_2010, na.rm = TRUE))
 ```
-
-Bates methodology was too complex for the data provided and the purpose of this project, so for a third method I looked to a report from the PEW charitable trusts. They defined a tract to have gentrified if the tract’s median income had to have increased at least 10 percent in inflation-adjusted dollars from 2000 to 2014 and and its 2014 median household income figure had to exceed the citywide median of $37,460.https://www.pewtrusts.org/-/media/assets/2016/05/philadelphias_changing_neighborhoods.pdf
-
-```{r}
-#regional change in median income
-final_condensed_msp %>%
-  ungroup() %>%
-  group_by(county_2020) %>%
-  summarize(medianInc = median(medianIncome_2020))
-```
   
-## Find gentrified tracts 
-
-Second, create a final `gentrified` dataset that lists whether each or not each census tract was gentrifiable and if it did gentrify according to Ding and Freeman's methods.
+Using these citywide values, denote each tract as having gentrified or not
 
 ```{r}
 gent_clean <- gentrifiable %>%
-  mutate(propbachelors2010 = bachelors25to64_2010/population_2010, 
-         propbachelors2020 = bachelors25to64_2020/population_2020, 
+  mutate(propbachelors2010 = bachelors_2010/population_2010, 
+         propbachelors2020 = bachelors_2020/population_2020, 
          change_bachelors = propbachelors2020 - propbachelors2010,
-         home_value_2010_in_2020dollars = medianHomeValue_2010 * 1.19,
-         home_value_increase = medianHomeValue_2020 - home_value_2010_in_2020dollars,
          percent_rent_increase = (medContractRent_2020 - medContractRent_2010)/(medContractRent_2010),
-         percent_homevalue_increase = (medianHomeValue_2020 - medianHomeValue_2010)/medianHomeValue_2010,
-         medianIncome_2020_in_2010dollars = medianIncome_2020 * 0.84,
-         medianIncome2020_10perc_increase = medianIncome_2020_in_2010dollars * 1.1) %>%
-  mutate(freeman = as.factor(case_when(canGent == "1" & change_bachelors >= 0.0286 & home_value_increase >= 0 ~ 1, TRUE ~ 0)), 
-         ding = as.factor(case_when((canGent == "1" & city == "Minneapolis" & change_bachelors > 0.0394 & 
-                                       (percent_rent_increase > 0.3259 | percent_homevalue_increase >0.1687)) |
-                                      (canGent == "1" & city == "Saint Paul" & change_bachelors > 0.01955693 &
-                                         (percent_rent_increase > 0.38078| percent_homevalue_increase > 0.05902)) ~ 1, 
+         percent_homevalue_increase = (medianHomeValue_2020 - medianHomeValue_2010)/medianHomeValue_2010, 
+         gentrified = as.factor(case_when((canGent2010 == "Yes" & city == "Minneapolis" & change_bachelors > 0.03941054 & 
+                                       (percent_rent_increase > 0.3259020 | percent_homevalue_increase >0.16874041)) |
+                                      (canGent2010 == "Yes" & city == "Saint Paul" & change_bachelors > 0.01854539 &
+                                         (percent_rent_increase > 0.3811 | percent_homevalue_increase > 0.05902)) ~ 1, 
                           TRUE ~ 0)), 
-         pew = as.factor(case_when((canGent == "1" & city == "Minneapolis" & medianIncome_2020 > medianIncome2020_10perc_increase & medianIncome_2020 >= 36776) | (canGent == "1" & city == "Saint Paul" & medianIncome_2020 > medianIncome2020_10perc_increase & medianIncome_2020 >= 31951) ~ 1, 
-          TRUE ~ 0)), 
-         twoGentrified = as.factor(case_when((ding == "1" & freeman == "1" & pew == "1")|
-                                   (ding == "1" & freeman == "1" & pew == "0")|
-                                      (ding == "1" & freeman == "0" & pew == "1")|
-                                   (ding == "0" & freeman == "1" & pew == "1") ~ 1, 
-                                 TRUE ~ 0)), 
-         canGent_gentrified = as.factor(case_when(canGent == "0" ~ "0", 
-                                                  canGent == "1" & twoGentrified == "0" ~ "1", 
-                                                  TRUE ~ "2")))
-```
-
-Understand the distribution of gentrified tracts for the different methods.
-
-```{r}
-gent_clean %>%
-  filter(canGent_gentrified != "0") %>%
-  count(freeman, ding, pew, twoGentrified)
+         canGent_gentrified = as.factor(case_when(canGent2010 == "No" ~ "Cannot gentrify", 
+                                                  canGent2010 == "Yes" & gentrified == "0" ~ "Could, but didn't gentrify", 
+                                                  canGent2010 == "Yes" & gentrified == "1" ~ "Gentrified")))
 ```
 
 Create map of gentrified tracts
@@ -117,9 +70,6 @@ Create map of gentrified tracts
 roads_sub <- st_crop(roads,st_bbox(gentrifiable))
 
 gent_clean %>%
-  mutate(canGent_gentrified = as.factor(case_when(canGent_gentrified == "0" ~ "Cannot gentrify", 
-                                        canGent_gentrified == "1" ~ "Could, but didn't gentrify",
-                                        TRUE ~ "Gentrified"))) %>%
   ggplot()+
   geom_sf(aes(fill=canGent_gentrified, color = city), lwd = 0.4)+
   geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
@@ -139,74 +89,14 @@ gent_clean %>%
   guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
 ```
 
-Additional maps for each method:
+Understand breakdown of gentrifying census tracts
 
 ```{r}
 gent_clean %>%
-  mutate(canGent_gentrified = as.factor(case_when(canGent == "0" ~ "Cannot gentrify", 
-                                        canGent == "1" & ding == "0" ~ "Could, but didn't gentrify",
-                                        canGent == "1" & ding == "1" ~ "Gentrified"))) %>%
-  ggplot()+
-  geom_sf(aes(fill=canGent_gentrified, color = city), lwd = 0.4)+
-  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
-  theme_classic()+
-  scale_color_manual(values = c("goldenrod", "forestgreen"))+
-  labs(title = "MSP census tract gentrification status in 2020 as denoted by Lei Ding", fill = "Gentrifiable", x = "", y = "", color = "City")+
-  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
-  theme(axis.line = element_blank(), 
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(),
-        legend.title = element_markdown(family = "mono"),
-        plot.title.position = "plot", 
-        plot.title = element_markdown(family = "mono", size = 10))+
-  #scale_fill_pretty_d(name = "Autumn", direction = -1)+
-  scale_fill_manual(values = c("#1B3A54", "#800000", "#CD0F75"))+
-  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
-  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
-
-gent_clean %>%
-  mutate(canGent_gentrified = as.factor(case_when(canGent == "0" ~ "Cannot gentrify", 
-                                        canGent == "1" & freeman == "0" ~ "Could, but didn't gentrify",
-                                        canGent == "1" & freeman == "1" ~ "Gentrified"))) %>%
-  ggplot()+
-  geom_sf(aes(fill=canGent_gentrified, color = city), lwd = 0.4)+
-  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
-  theme_classic()+
-  scale_color_manual(values = c("goldenrod", "forestgreen"))+
-  labs(title = "MSP census tract gentrification status in 2020 as denoted by Lance Freeman", fill = "Gentrifiable", x = "", y = "", color = "City")+
-  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
-  theme(axis.line = element_blank(), 
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(),
-        legend.title = element_markdown(family = "mono"),
-        plot.title.position = "plot", 
-        plot.title = element_markdown(family = "mono", size = 10))+
-  #scale_fill_pretty_d(name = "Autumn", direction = -1)+
-  scale_fill_manual(values = c("#1B3A54", "#800000", "#CD0F75"))+
-  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
-  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
-
-gent_clean %>%
-  mutate(canGent_gentrified = as.factor(case_when(canGent == "0" ~ "Cannot gentrify", 
-                                        canGent == "1" & pew == "0" ~ "Could, but didn't gentrify",
-                                        canGent == "1" & pew == "1" ~ "Gentrified"))) %>%
-  ggplot()+
-  geom_sf(aes(fill=canGent_gentrified, color = city), lwd = 0.4)+
-  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
-  theme_classic()+
-  scale_color_manual(values = c("goldenrod", "forestgreen"))+
-  labs(title = "MSP census tract gentrification status in 2020 as denoted \nby the PEW Charitiable Trusts", fill = "Gentrifiable", x = "", y = "", color = "City")+
-  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
-  theme(axis.line = element_blank(), 
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(),
-        legend.title = element_markdown(family = "mono"),
-        plot.title.position = "plot", 
-        plot.title = element_markdown(family = "mono", size = 10))+
-  #scale_fill_pretty_d(name = "Autumn", direction = -1)+
-  scale_fill_manual(values = c("#1B3A54", "#800000", "#CD0F75"))+
-  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
-  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
+  group_by(city, canGent_gentrified) %>%
+  count() %>%
+  group_by(city) %>%
+  mutate(proportion = n/sum(n))
 ```
 
 

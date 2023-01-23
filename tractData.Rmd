@@ -42,7 +42,7 @@ Median contract rent H056001
 ```{r}
 variables2000 <- load_variables(2000, "sf3")
 
-census2000 <- get_decennial(year = 2000, state = "MN", geography = "tract", variables = c("P001001", "P053001", "P037015", "P037032", "H034001", "H034002", "H034003", "H034004", "H034005", "H034006", "H034007", "H034008", "H034009", "H034010", "H007001", "H007002", "H007003", "P006002", "H085001", "H056001"), output = 'wide') %>%
+census2000 <- get_decennial(year = 2000, state = "MN", geography = "tract", variables = c("P001001", "P053001", "P037015", "P037032", "H007001", "H007002", "H007003", "P006002", "H085001", "H056001"), output = 'wide') %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey"))%>%
                mutate(tract = word(NAME, 3),
                       tract = str_remove(tract, ","),
@@ -52,16 +52,6 @@ census2000 <- get_decennial(year = 2000, state = "MN", geography = "tract", vari
   select(-P037015, -P037032) %>%
   rename("population" = "P001001", 
          "medianIncome" = "P053001",
-         "totalStructure" = "H034001", 
-         "built1999toMar2000" = "H034002",
-         "built1995to1998" = "H034003", 
-         "built1990to1994" = "H034004", 
-         "built1980to1989" = "H034005", 
-         "built1970to1979" = "H034006", 
-         "built1960to1969" = "H034007", 
-         "built1950to1959" = "H034008", 
-         "built1940to1949" = "H034009", 
-         "builtPre1940" = "H034010",
          "tenureTotal" = "H007001", 
          "tenureOwned" = "H007002", 
          "tenureRented" = "H007003",
@@ -78,25 +68,15 @@ acsvariables2010 <- load_variables(year = 2010, dataset = "acs5")
 
 # Select variables of interest from 2010 ACS
 census2010 <- get_acs(year = 2010, state = "MN", geography = "tract", variables = c(	
-"B01003_001", "B06011_001", "B23006_023", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_002", "B25077_001"), output = 'wide') %>%
+"B01003_001", "B19013_001", "B23006_023", "B25058_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_002", "B25077_001"), output = 'wide') %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey"))%>%
                mutate(tract = word(NAME, 3),
                       tract = str_remove(tract, ","),
                       county = word(NAME, 4)) %>%
                select(-NAME) %>%
                rename("population" = "B01003_001E", 
-                      "medianIncome" = "B06011_001E", 
+                      "medianIncome" = "B19013_001E", 
                       "bachelors" = "B23006_023E",
-                      "totalStructure" = "B25034_001E", 
-                      "builtSince2005" = "B25034_002E", 
-                      "built2000to2004" = "B25034_003E", 
-                      "built1990to1999" = "B25034_004E", 
-                      "built1980to1989" = "B25034_005E", 
-                      "built1970to1979" = "B25034_006E", 
-                      "built1960to1969" = "B25034_007E", 
-                      "built1950to1959" = "B25034_008E", 
-                      "built1940to1949" = "B25034_009E", 
-                      "builtPre1940" = "B25034_010E", 
                       "medContractRent" = "B25058_001E", 
                       "tenureTotal" = "B25003_001E", 
                       "tenureOwned" = "B25003_002E", 
@@ -110,25 +90,15 @@ Finally, we can do the same thing for the 2020 census.
 
 ```{r}
 census2020 <- get_acs(year = 2020, state = "MN", geography = "tract", variables = c(	
-"B01003_001", "B06011_001", "B23006_023", "B25034_001", "B25034_002", "B25034_003", "B25034_004", "B25034_005", "B25034_006", "B25034_007", "B25034_008", "B25034_009", "B25034_010", "B25058_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_002", "B25077_001"), output = 'wide') %>%
+"B01003_001", "B19013_001", "B23006_023", "B25058_001", "B25107_001", "B25003_001", "B25003_002", "B25003_003", "B02001_002", "B25077_001"), output = 'wide') %>%
   filter(word(NAME, 4) %in% c("Hennepin", "Ramsey"))%>%
                mutate(tract = word(NAME, 3),
                       tract = str_remove(tract, ","),
                       county = word(NAME, 4)) %>%
                select(-NAME) %>%
                rename("population" = "B01003_001E", 
-                      "medianIncome" = "B06011_001E", 
+                      "medianIncome" = "B19013_001E", 
                       "bachelors" = "B23006_023E",
-                      "totalStructure" = "B25034_001E", 
-                      "builtSince2005" = "B25034_002E", 
-                      "built2000to2004" = "B25034_003E", 
-                      "built1990to1999" = "B25034_004E", 
-                      "built1980to1989" = "B25034_005E", 
-                      "built1970to1979" = "B25034_006E", 
-                      "built1960to1969" = "B25034_007E", 
-                      "built1950to1959" = "B25034_008E", 
-                      "built1940to1949" = "B25034_009E", 
-                      "builtPre1940" = "B25034_010E", 
                       "medContractRent" = "B25058_001E", 
                       "tenureTotal" = "B25003_001E", 
                       "tenureOwned" = "B25003_002E", 

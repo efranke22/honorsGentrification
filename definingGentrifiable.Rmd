@@ -21,6 +21,10 @@ library(srvyr)
 library(sf)
 library(PrettyCols)
 library(ggtext)
+library(showtext)
+font_add_google("Roboto Condensed")
+font_add_google("Lora")
+showtext_auto()
 ```
 
 ```{r}
@@ -28,82 +32,62 @@ roads <- st_read("ShpData/tl_2019_27_prisecroads")
 load("Data/tractData/originalTidycensus/acs2010.RData")
 load("Data/tractData/cleaned/final_condensed_msp.RData")
 load("Data/tractData/cleaned/final_condensed.RData")
+load("Data/tractData/cleaned/acs2000clean.RData")
+load("Data/tractData/originalTidycensus/acs2000.RData")
 ```
 
 
-## Methods for defining gentrifiable tracts
+## Method for defining gentrifiable census tracts: Lei Ding
 
 Lei Ding (2016) of the Federal Reserve Bank of Philadelphia (2016) defines a gentrifiable tract as one that has: 
 - median household income is less than the citywide median income
 
+Identify gentrifiable tracts in 2000:
+
 ```{r}
-final_condensed_msp <- final_condensed_msp %>%
+ding2000 <- census2000clean %>%
+  mutate(city = case_when(county_2000 == "Hennepin" ~ "Minneapolis", 
+                          TRUE ~ "Saint Paul")) %>%
+  group_by(city) %>%
+  mutate(cityMedInc = median(medianIncome_2000), 
+         canGent2000 = as.factor(case_when(medianIncome_2000 > cityMedInc ~ "No", 
+                                      TRUE ~ "Yes"))) %>%
+  select(tract_2000, canGent2000)
+```
+
+Identify gentrifiable census tracts in 2010
+
+```{r}
+ding2010 <- final_condensed_msp %>%
   group_by(city) %>%
   mutate(cityMedInc = median(medianIncome_2010), 
-         Ding = case_when(medianIncome_2010 > cityMedInc ~ 0, 
-                          TRUE ~ 1)) %>%
-  select(-cityMedInc)
+         canGent2010 = as.factor(case_when(medianIncome_2010 > cityMedInc ~ "No", 
+                                      TRUE ~ "Yes"))) %>%
+  select(tractmod, city, canGent2010)
 ```
 
-Professor Lance Freeman (2005): all three measurements below must be met:
-- restricts analysis to neighborhoods within the central city of any given metropolitan area (already complete for our dataset). \
-- isolates low-income census tracts, using the metropolitan area median housing income as the comparison rather than the citywide median. \
-- looks at the share of the housing stock built within the previous 20 years as a measure of relative disinvestment. Tracts in which the share of housing built in the previous 20 years is less than the median for all tracts throughout the metropolitan area are identified.
+Combine years
 
 ```{r}
-# find metro area mean income
-final_condensed %>%
-  mutate(propBuiltSince1990 = (builtSince2005_2010 + built2000to2004_2010 + built1990to1999_2010)/((builtSince2005_2010 + built2000to2004_2010 + built1990to1999_2010 + built1980to1989_2010 + built1970to1979_2010 + built1960to1969_2010 + built1950to1959_2010 + built1940to1949_2010+ builtPre1940_2010))) %>%
-  ungroup() %>%
-  summarize(medianMetroInc = median(medianIncome_2010), 
-            medianHousing = median(propBuiltSince1990))
+gentrifiable <- ding2010 %>%
+  left_join(ding2000, by = c("tractmod" = "tract_2000", "city")) %>%
+  st_drop_geometry()
 
-final_condensed_msp <- final_condensed_msp %>%
-  mutate(propBuiltSince1990 = (builtSince2005_2010 + built2000to2004_2010 + built1990to1999_2010)/((builtSince2005_2010 + built2000to2004_2010 + built1990to1999_2010 + built1980to1989_2010 + built1970to1979_2010 + built1960to1969_2010 + built1950to1959_2010 + built1940to1949_2010+ builtPre1940_2010)),
-         Freeman = case_when(medianIncome_2010 <= 31863 & propBuiltSince1990 <0.0827436	 ~ 1, 
-                             TRUE ~ 0))
-```
-
-Professor Lisa Bates (2013): census tracts must meet at least 3/4 of the criteria \
-- a higher percentage of renters than the citywide rate \
-- a higher percentage of people of color than citywide \
-- a larger share of low-income households than the citywide rate \
-- a lower rate of residents with bachelor’s degrees than the citywide rate \
-
-```{r}
 gentrifiable <- final_condensed_msp %>%
-  group_by(city) %>%
-  mutate(cityMedInc = median(medianIncome_2010), 
-         cityBachelors = median(bachelors25to64_2010/population_2010),
-         cityRenter_prop = median(tenureRented_2010/tenureTotal_2010),
-         cityPoc_prop = median(1-totalWhite_2010/totalRace_2010)) %>%
-  ungroup() %>%
-  mutate(highRenter = case_when(tenureRented_2010/tenureTotal_2010 > cityRenter_prop ~ 1, 
-                                TRUE ~ 0),
-         highPoc = case_when(1-totalWhite_2010/totalRace_2010 > cityPoc_prop ~ 1, 
-                             TRUE ~0),
-         low_income = case_when(medianIncome_2010 < cityMedInc ~ 1, 
-                             TRUE ~ 0),
-         low_bachelors = case_when(bachelors25to64_2010/population_2010 < cityBachelors ~ 1, 
-                              TRUE ~ 0), 
-         Bates = case_when(highRenter + highPoc + low_income + low_bachelors >=3 ~ 1, 
-                           TRUE ~0)) %>%
-  select(-cityMedInc, -cityBachelors, -cityRenter_prop, -cityPoc_prop) %>%
-  mutate(canGent = case_when(Ding + Freeman + Bates >=2 ~ 1, 
-                            TRUE ~ 0))
+  left_join(gentrifiable, by = c("tractmod", "city"))
 ```
+
 
 ## Combine methods and identify gentrifiable tracts
 
 Create a map of the 2010 census tracts, colored by whether or not the tract can gentrify. 
+
 ```{r}
 roads_sub <- st_crop(roads,st_bbox(gentrifiable))
 
 gentrifiable %>%
-  mutate(canGent = case_when(canGent == "1" ~ "Yes", 
-                             TRUE ~ "No")) %>%
   ggplot()+
-  geom_sf(aes(fill=canGent, color = city), lwd = 0.4)+
+  geom_sf(aes(fill=canGent2010, color = city), lwd = 0.4)+
   geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
   theme_classic()+
   scale_color_manual(values = c("goldenrod", "forestgreen"))+
@@ -113,25 +97,13 @@ gentrifiable %>%
         axis.text = element_blank(), 
         axis.ticks = element_blank(),
         legend.title = element_markdown(family = "mono"),
+        legend.text =  element_markdown(family = "mono"),
         plot.title.position = "plot", 
         plot.title = element_markdown(family = "mono", size = 10))+
   scale_fill_pretty_d(name = "Autumn", direction = -1)+
   annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
   guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
 ```
-
-Understand number of gentrifiable census tracts by research method and city.
-
-```{r}
-gentrifiable %>%
-  ungroup() %>%
-  count(Freeman, Ding, Bates, canGent)
-
-gentrifiable %>%
-  ungroup() %>%
-  count(city, canGent)
-```
-
 
 Write the gentrifiable file to the Data folder for future use. 
 
