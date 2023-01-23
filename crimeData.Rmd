@@ -104,6 +104,17 @@ load('Data/tractData/cleaned/gent_clean.RData')
 
 Goal: aggregate these points by census tract based on latitude and longitude and plot them using the final census tracts from the cleaned gentrification file. 
 
+First, assign each crime to a category of violent crime versus theft. The following 413 crimes were not placed in a category: COMPUT, JHOMIC, NOPAY, ONLTHT, WLKOFF
+
+```{r}
+minneapolisCrime <- minneapolisCrime %>%
+  filter(year != 2023) %>%
+  mutate(offenseCat = case_when(Offense %in% c("THEFT", "TFMV", "BURGD", "AUTOTH", "BURGB", "BIKETF", "TMVP", "THFTSW", "SHOPLF", "TFPER", "TBLDG", "CARJCK", "MVTHFT", "COINOP", "SCRAP", "POCKET", "PETIT", "PKGTHEFT", "LOOT") ~ "Theft", 
+                   Offense %in% c("ASLT2", "ROBPER", "CSCR", "DASTR", "DASLT2", "ASLT3", "ROBBIZ", "ROBPAG", "ARSON", "ASLT4", "DASLT3", "MURDR", "ASLT1", "ADLTTN", "DASLT1", "DISARM", "ABSVAR") ~ "Violent",
+                   TRUE ~ "random")) %>% 
+  filter(offenseCat != "random")
+```
+
 Make the crime coordinates sf geometry points of the right coordinate system.
 
 ```{r}
@@ -122,22 +133,20 @@ plot(gent_clean$geometry, border="gray20", col=NA, add=T)
 
 crimes_per_tract_no_geo <- tract_points %>%
   st_drop_geometry() %>%
-  group_by(tractmod, year, .drop=FALSE) %>%
+  group_by(tractmod, year, offenseCat, .drop=FALSE) %>%
   count() %>%
   pivot_wider(names_from = year, values_from = n) %>%
   replace(is.na(.),0) %>%
   pivot_longer(cols = c(`2010`:`2022`),names_to = "year", values_to = "n") %>%
+  pivot_wider(names_from = offenseCat, values_from = n) %>%
   filter(tractmod != 332)
 
 tract_aggregated <- gent_clean %>%
   right_join(crimes_per_tract_no_geo, by = "tractmod") %>%
-  mutate(crimes_per_1000 = round((n/population_2020) * 1000,0),
-         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=20 ~ "0-20", 
-                                      crimes_per_1000 >20 & crimes_per_1000 <= 40 ~ "21-40", 
-                                      crimes_per_1000 > 41 & crimes_per_1000 <= 60 ~ "41-60", 
-                                      crimes_per_1000 >61 & crimes_per_1000 <= 80 ~ "61-80", 
-                                      TRUE ~ "80+")), 
-         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-20", "21-40", "41-60", "61-80", "80+")))
+  mutate(violent_per_1000 = case_when(year %in% c(2010, 2011, 2012, 2013, 2014, 2015) ~ round((Violent/population_2010) * 1000,0),
+                                      TRUE ~ round((Violent/population_2020) * 1000,0)), 
+         theft_per_1000 = case_when(year %in% c(2010, 2011, 2012, 2013, 2014, 2015) ~ round((Theft/population_2010) * 1000,0),
+                                      TRUE ~ round((Theft/population_2020) * 1000,0)))
 ```
 
 Join crime data with `gent_clean` file.
@@ -147,97 +156,12 @@ tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tractmod"]) %>%
   st_join(gent_clean) %>%
   select(-tractmod.y) %>%
   rename("tract" = "tractmod.x") %>%
-  mutate(offense_group = case_when(Offense %in% c("THEFT", "BIKETF", "TFPER", "THFTSW", "PKGTHEFT") ~ "Theft", 
-                                   Offense %in% c("TFMV", "AUTOTH", "TMVP", "CARJCK", "MVTHFT") ~ "Auto Theft",
-                                   Offense == "BURGD" ~ "Home Burglary", 
-                                   Offense %in% c("BURGB", "ROBBIZ", "TBLDG") ~ "Business Burglary", 
-                                   Offense %in% c("ASLT2", "CSCR", "DASTR", "DASLT2", "ASLT3", "ASLT4", "DASLT3", "MURDR", "ASLT1", "DASLT1") ~ "Assault", 
-                                   TRUE ~ "Other")) %>%
   filter(tract != 332)
 ```
 
 ```{r,eval=FALSE}
 save(tract_aggregated, file = 'Data/CrimeCleaned/tract_aggregated_minneapolis.RData')
 save(tract_points, file = "Data/CrimeCleaned/tract_points_minneapolis.RData")
-```
-
-### Violent crimes in Minneapolis
-
-```{r}
-crimes_per_tract_violent <- tract_points %>%
-  st_drop_geometry() %>%
-  filter(offense_group == "Assault") %>%
-  group_by(tract, year) %>%
-  count() %>%
-  pivot_wider(names_from = year, values_from = n) %>%
-  replace(is.na(.),0) %>%
-  pivot_longer(cols = c(`2010`:`2022`),names_to = "year", values_to = "n") %>%
-  filter(tract != 332)
-
-tract_aggregated_violent <- gent_clean %>%
-  right_join(crimes_per_tract_violent, by = c("tractmod" = "tract")) %>%
-  mutate(crimes_per_1000 = round((n/population_2020) * 1000,0),
-         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=4 ~ "0-5", 
-                                      crimes_per_1000 >5 & crimes_per_1000 <= 10~ "6-10", 
-                                      crimes_per_1000 > 10 & crimes_per_1000 <= 15 ~ "11-15", 
-                                      crimes_per_1000 >15 & crimes_per_1000 <= 20 ~ "16-20", 
-                                      TRUE ~ "20+")), 
-         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-5", "6-10", "11-15", "16-20", "20+")))
-```
-
-### Thefts in Minneapolis
-
-```{r}
-crimes_per_tract_theft <- tract_points %>%
-  st_drop_geometry() %>%
-  filter(offense_group == "Theft") %>%
-  group_by(tract, year) %>%
-  count() %>%
-  pivot_wider(names_from = year, values_from = n) %>%
-  replace(is.na(.),0) %>%
-  pivot_longer(cols = c(`2010`:`2022`),names_to = "year", values_to = "n") %>%
-  filter(tract != 332)
-
-tract_aggregated_theft <- gent_clean %>%
-  right_join(crimes_per_tract_theft, by = c("tractmod" = "tract")) %>%
-  mutate(crimes_per_1000 = round((n/population_2020) * 1000,0),
-         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=10 ~ "0-10", 
-                                      crimes_per_1000 >10 & crimes_per_1000 <= 20~ "11-20", 
-                                      crimes_per_1000 > 20 & crimes_per_1000 <= 30 ~ "21-30", 
-                                      crimes_per_1000 >30 & crimes_per_1000 <= 40 ~ "31-40", 
-                                      TRUE ~ "40+")), 
-         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-10", "11-20", "21-30", "31-40", "40+")))
-```
-
-### Auto Thefts in Minneapolis
-
-```{r}
-crimes_per_tract_auto_theft <- tract_points %>%
-  st_drop_geometry() %>%
-  filter(offense_group == "Auto Theft") %>%
-  group_by(tract, year) %>%
-  count() %>%
-  pivot_wider(names_from = year, values_from = n) %>%
-  replace(is.na(.),0) %>%
-  pivot_longer(cols = c(`2010`:`2022`),names_to = "year", values_to = "n") %>%
-  filter(tract != 332)
-
-tract_aggregated_auto_theft <- gent_clean %>%
-  right_join(crimes_per_tract_auto_theft, by = c("tractmod" = "tract")) %>%
-  mutate(crimes_per_1000 = round((n/population_2020) * 1000,0),
-         crimes_per_1000d = as.factor(case_when(crimes_per_1000 <=10 ~ "0-10", 
-                                      crimes_per_1000 >10 & crimes_per_1000 <= 20~ "11-20", 
-                                      crimes_per_1000 > 20 & crimes_per_1000 <= 30 ~ "21-30", 
-                                      crimes_per_1000 >30 & crimes_per_1000 <= 40 ~ "31-40", 
-                                      TRUE ~ "40+")), 
-         crimes_per_1000d = fct_relevel(crimes_per_1000d, levels = c("0-10", "11-20", "21-30", "31-40", "40+")))
-```
-
-
-```{r, eval=FALSE}
-save(tract_aggregated_violent, file = "Data/CrimeCleaned/tract_aggregated_minneapolis_violent.RData")
-save(tract_aggregated_theft, file = "Data/CrimeCleaned/tract_aggregated_minneapolis_theft.RData")
-save(tract_aggregated_auto_theft, file = "Data/CrimeCleaned/tract_aggregated_minneapolis_autotheft.RData")
 ```
 
 ## Cleaning saint paul crime data

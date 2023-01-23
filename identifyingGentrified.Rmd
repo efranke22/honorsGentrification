@@ -71,10 +71,10 @@ roads_sub <- st_crop(roads,st_bbox(gentrifiable))
 
 gent_clean %>%
   ggplot()+
-  geom_sf(aes(fill=canGent_gentrified, color = city), lwd = 0.4)+
+  geom_sf(aes(fill=canGent_gentrified), lwd = 0.4)+
   geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
   theme_classic()+
-  scale_color_manual(values = c("goldenrod", "forestgreen"))+
+  #scale_color_manual(values = c("#F0E442", "#009E73"))+
   labs(title = "MSP census tract gentrification status in 2020", fill = "Gentrifiable", x = "", y = "", color = "City")+
   annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
   theme(axis.line = element_blank(), 
@@ -84,7 +84,7 @@ gent_clean %>%
         plot.title.position = "plot",
         legend.text = element_markdown(family = "mono"),
         plot.title = element_markdown(family = "mono", size = 12))+
-  scale_fill_manual(values = c("#1B3A54", "#800000", "#CD0F75"))+
+  scale_fill_manual(values = c("#0072B2", "#D55E00", "#F0E442"))+
   annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
   guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
 ```
@@ -98,6 +98,66 @@ gent_clean %>%
   group_by(city) %>%
   mutate(proportion = n/sum(n))
 ```
+
+Understand census tracts by variables included in gentrification definition.
+
+```{r}
+gent_clean %>%
+  mutate(percent_bach = bachelors_2010/population_2010) %>%
+  ggplot()+
+  geom_sf(aes(fill=percent_bach, color = city), lwd = 0.4)+
+  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
+  theme_classic()+
+  scale_color_manual(values = c("goldenrod", "forestgreen"))+
+  labs(title = "MSP census tract gentrification status in 2020", fill = "Gentrifiable", x = "", y = "", color = "City")+
+  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
+  theme(axis.line = element_blank(),
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        legend.title = element_markdown(family = "mono"), 
+        plot.title.position = "plot", 
+        plot.title = element_markdown(family = "mono", size = 12))+
+  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
+  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
+
+gent_clean %>%
+  mutate(percent_bach = bachelors_2020/population_2020) %>%
+  ggplot()+
+  geom_sf(aes(fill=percent_bach, color = city), lwd = 0.4)+
+  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
+  theme_classic()+
+  scale_color_manual(values = c("goldenrod", "forestgreen"))+
+  labs(title = "Proportion of residents with a bachelors degree by MSP census tract", fill = "Proportion", x = "", y = "", color = "City")+
+  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
+  theme(axis.line = element_blank(),
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        legend.title = element_markdown(family = "mono"), 
+        plot.title.position = "plot", 
+        plot.title = element_markdown(family = "mono", size = 12))+
+  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
+  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
+
+gent_clean %>%
+  mutate(change_bach = bachelors_2020/population_2020 - bachelors_2010/population_2010) %>%
+  ggplot()+
+  geom_sf(aes(fill=change_bach, color = city), lwd = 0.4)+
+  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
+  theme_classic()+
+  scale_color_manual(values = c("goldenrod", "forestgreen"))+
+  labs(title = "Proportion of residents with a bachelors degree by MSP census tract", fill = "Proportion", x = "", y = "", color = "City")+
+  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
+  scale_fill_gradient2()+
+  theme(axis.line = element_blank(),
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        legend.title = element_markdown(family = "mono"), 
+        plot.title.position = "plot", 
+        plot.title = element_markdown(family = "mono", size = 12))+
+  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
+  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
+```
+
 
 
 ```{r, eval=FALSE}

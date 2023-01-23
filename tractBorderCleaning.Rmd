@@ -242,7 +242,8 @@ b <- saintPaul_tracts %>%
   left_join(final_condensed, by = "tractmod") %>%
   mutate(city = "Saint Paul")
 
-final_condensed_msp <- bind_rows(a,b)
+final_condensed_msp <- bind_rows(a,b) %>%
+  filter(!(tractmod %in% c(201.01, 201.02, 238.02, 236, 231, 229.01, 218, 217, 214, 212, 205, 204, 244, 247)))
 ```
 
 Save finished data sets
@@ -286,7 +287,7 @@ census2000groups <- census2000 %>%
 
 census2000clean <- census2000 %>%
   mutate(tract_2000 = as.numeric(tract_2000)) %>%
-  filter(!(tract_2000 %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03, 1014, 1015)), tract_2000 %in% tracts, ) %>%
+  filter(!(tract_2000 %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03)), tract_2000 %in% tracts) %>%
   bind_rows(census2000groups)
 ```
 
