@@ -24,17 +24,10 @@ load('Data/tractData/cleaned/gent_clean.RData')
 #Minneapolis
 load('Data/CrimeCleaned/tract_aggregated_minneapolis.RData')
 load('Data/CrimeCleaned/tract_points_minneapolis.RData')
-load("Data/CrimeCleaned/tract_aggregated_minneapolis_violent.RData")
-load("Data/CrimeCleaned/tract_aggregated_minneapolis_theft.RData")
-load("Data/CrimeCleaned/tract_aggregated_minneapolis_autotheft.RData")
-
 
 #Saint Paul
 load('Data/CrimeCleaned/tract_aggregated_sp.RData')
 load("Data/CrimeCleaned/tract_points_sp.RData")
-load("Data/CrimeCleaned/tract_aggregated_sp_violent.RData")
-load("Data/CrimeCleaned/tract_aggregated_sp_theft.RData")
-load("Data/CrimeCleaned/tract_aggregated_sp_autotheft.RData")
 ```
 
 # EDA - Minneapolis
@@ -42,16 +35,25 @@ load("Data/CrimeCleaned/tract_aggregated_sp_autotheft.RData")
 Explore year distribution of crimes in Minneapolis.
 
 ```{r}
-mn2019 <- tract_aggregated %>%
-  filter(year == 2019) %>%
-  select(crimes_per_1000d)
+mn2020 <- tract_aggregated %>%
+  filter(year == 2020) %>%
+  select(tractmod, year, violent_per_1000) %>%
+  mutate(violent_d = case_when(violent_per_1000 <=4 ~ "0-4",
+                               violent_per_1000 >4 & violent_per_1000 <=9 ~ "5-9",
+                               violent_per_1000 >9 & violent_per_1000 <= 16 ~ "10-16", 
+                               TRUE ~ "17+"))
 sp2019 <- tract_aggregated_sp %>%
-  filter(year == 2019) %>%
-  select(crimes_per_1000d)
+  filter(year == 2020) %>%
+  select(tractmod, year, violent_per_1000) %>%
+  mutate(violent_d = case_when(violent_per_1000 <=4 ~ "0-4",
+                               violent_per_1000 >4 & violent_per_1000 <=9 ~ "5-9",
+                               violent_per_1000 >9 & violent_per_1000 <= 16 ~ "10-16", 
+                               TRUE ~ "17+"))
 
 bind_rows(mn2019, sp2019) %>%
+  mutate(violent_d = fct_relevel(violent_d, levels = c("0-4", "5-9", "10-16", "17+"))) %>%
   ggplot()+
-  geom_sf(aes(fill = crimes_per_1000d))+
+  geom_sf(aes(fill =violent_d))+
   theme_classic()+
   scale_fill_natparks_d(name = "Olympic")+
   labs(title = "Crimes per 1000 residents in 2019 by census tract", fill = "", y = "", x = "")+
@@ -77,8 +79,7 @@ Look at overall trend in number of crimes per year.
 minn_annual <- tract_points %>%
   st_drop_geometry() %>%
   count(year) %>%
-  mutate(city = "Minneapolis") %>%
-  filter(year < 2022)
+  mutate(city = "Minneapolis")
 
 sp_annual <- tract_points_sp %>%
   st_drop_geometry() %>%
@@ -89,7 +90,6 @@ bind_rows(minn_annual, sp_annual) %>%
   ggplot(aes(x=year, y=n, color = city))+
   geom_point()+
   geom_line()+
-  ylim(c(5000, 25000))+
     scale_color_manual(values = c("navy", "goldenrod3"))+
   scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018, 2020, 2022))+
   theme_classic()+
@@ -105,12 +105,11 @@ bind_rows(minn_annual, sp_annual) %>%
 ```{r}
 tract_aggregated %>%
   st_drop_geometry() %>%
+  mutate(canGent = case_when(canGent_gentrified == "Cannot gentrify" ~ "Cannot Gentrify", 
+                                  TRUE ~ "Gentrifiable")) %>%
   group_by(year, canGent) %>%
-  summarize(avg = mean(crimes_per_1000)) %>%
+  summarize(avg = mean(violent_per_1000)) %>%
   mutate(year = as.numeric(year)) %>%
-  filter(year < 2022) %>%
-  mutate(canGent = case_when(canGent == "1" ~ "Gentrifiable", 
-                             TRUE ~ "Cannot gentrify")) %>%
   ggplot(aes(x=year, y=avg, color = as.factor(canGent)))+
   geom_point()+
   geom_line()+
