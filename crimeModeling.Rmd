@@ -33,41 +33,72 @@ crimes_wide_sp <- tract_aggregated_sp %>%
 crimes_wide_sp$canGent_gentrified <- relevel(crimes_wide_sp$canGent_gentrified, ref = "Could, but didn't gentrify")
 ```
 
-```{r}
-minn_violent <- glm(Violent_2020 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
-    data = crimes_wide_minn, family = poisson(link=log))
-summary(minn_violent)
-
-minn_theft <- glm(Theft_2020 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
-    data = crimes_wide_minn, family = poisson(link=log))
-summary(minn_theft)
-
-tract_aggregated %>%
-  st_drop_geometry() %>%
-  group_by(canGent_gentrified,year) %>%
-  summarize(avg = mean(violent_per_1000)) %>%
-  mutate(year = as.numeric(year)) %>%
-  ggplot(aes(x=year, y=avg, color = canGent_gentrified))+
-  geom_line()
-
-tract_aggregated %>%
-  st_drop_geometry() %>%
-  group_by(canGent_gentrified,year) %>%
-  summarize(avg = mean(theft_per_1000)) %>%
-  mutate(year = as.numeric(year)) %>%
-  ggplot(aes(x=year, y=avg, color = canGent_gentrified))+
-  geom_line()
-```
+### Violent crimes in Minneapolis
 
 ```{r}
-sp_violent <- glm(Violent_2020 ~ canGent_gentrified + Violent_2015 + offset(log(population_2020)),
-    data = crimes_wide_sp, family = poisson(link=log))
-summary(sp_violent)
+minn_violent19 <- glm(Violent_2019 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = poisson(link=log))
+summary(minn_violent19)
 
-sp_theft <- glm(Theft_2020 ~ canGent_gentrified + Theft_2015 + offset(log(population_2020)),
-    data = crimes_wide_sp, family = poisson(link=log))
-summary(sp_theft)
+minn_violent20 <- glm(Violent_2020 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = poisson(link=log))
+summary(minn_violent20)
+
+minn_violent22 <- glm(Violent_2022 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = poisson(link=log))
+summary(minn_violent22)
 ```
+
+### Theft in Minneapolis 
+
+```{r}
+minn_theft19 <- glm(Theft_2019 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = poisson(link=log))
+summary(minn_theft19)
+
+minn_theft20 <- glm(Theft_2020 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = poisson(link=log))
+summary(minn_theft20)
+
+minn_theft22 <- glm(Theft_2022 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = poisson(link=log))
+summary(minn_theft22)
+```
+
+## Saint Paul Models
+
+### Violent Crimes 
+
+```{r}
+sp_violent19 <- glm(Violent_2019 ~ canGent_gentrified + Violent_2015 + offset(log(population_2020)),
+    data = crimes_wide_sp, family = poisson(link=log))
+summary(sp_violent19)
+
+sp_violent20 <- glm(Violent_2020 ~ canGent_gentrified + Violent_2015 + offset(log(population_2020)),
+    data = crimes_wide_sp, family = poisson(link=log))
+summary(sp_violent20)
+
+sp_violent22 <- glm(Violent_2022 ~ canGent_gentrified + Violent_2015 + offset(log(population_2020)),
+    data = crimes_wide_sp, family = poisson(link=log))
+summary(sp_violent22)
+```
+
+### Theft
+
+```{r}
+sp_theft19 <- glm(Theft_2019 ~ canGent_gentrified + Theft_2015 + offset(log(population_2020)),
+    data = crimes_wide_sp, family = poisson(link=log))
+summary(sp_theft19)
+
+sp_theft20 <- glm(Theft_2020 ~ canGent_gentrified + Theft_2015 + offset(log(population_2020)),
+    data = crimes_wide_sp, family = poisson(link=log))
+summary(sp_theft20)
+
+sp_theft22 <- glm(Theft_2022 ~ canGent_gentrified + Theft_2015 + offset(log(population_2020)),
+    data = crimes_wide_sp, family = poisson(link=log))
+summary(sp_theft22)
+```
+
 
 ```{r}
 library(stargazer)

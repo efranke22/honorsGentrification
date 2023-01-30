@@ -115,6 +115,17 @@ minneapolisCrime <- minneapolisCrime %>%
   filter(offenseCat != "random")
 ```
 
+```{r}
+minneapolisCrime %>%
+  count(Offense, year) %>%
+  filter(Offense %in% c("THEFT", "TFMV", "BURGD", "AUTOTH")) %>%
+  ggplot(aes(x=as.numeric(year), y=n, color = Offense))+
+  geom_point()+
+  geom_line()+
+  theme_classic()+
+  scale_x_continuous(breaks = c(2010:2022))
+```
+
 Make the crime coordinates sf geometry points of the right coordinate system.
 
 ```{r}
