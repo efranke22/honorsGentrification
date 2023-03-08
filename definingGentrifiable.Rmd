@@ -91,7 +91,7 @@ gentrifiable %>%
   geom_sf(aes(fill=canGent2010), lwd = 0.4, color = "gray")+
   geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
   theme_classic()+
-  labs(title = "Gentrifiable census tracts in Minneapolis-Saint Paul city limits in 2010", subtitle = "With reported crimes in 2010s", fill = "Gentrifiable", x = "", y = "", color = "City")+
+  labs(title = "Gentrifiable census tracts in Minneapolis-Saint Paul city limits in 2010", fill = "Gentrifiable", x = "", y = "", color = "City")+
   annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
   theme(axis.line = element_blank(), 
         axis.text = element_blank(), 

@@ -9,9 +9,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+This is the 7th file in my honors project and creates Poisson regression models for Minneapolis and Saint Paul crime. \
+
 ```{r}
 library(tidyverse)
 library(sf)
+library(spdep)
 ```
 
 ## Minneapolis modeling
@@ -19,6 +22,7 @@ library(sf)
 ```{r}
 load("Data/CrimeCleaned/tract_aggregated_minneapolis.RData")
 load("Data/CrimeCleaned/tract_aggregated_sp.RData")
+load("Data/CrimeCleaned/tract_aggregated_no_auto.RData")
 ```
 
 ```{r}
@@ -27,11 +31,17 @@ crimes_wide_minn <- tract_aggregated %>%
   pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = c(Theft, Violent, violent_per_1000, theft_per_1000))
 crimes_wide_minn$canGent_gentrified <- relevel(crimes_wide_minn$canGent_gentrified, ref = "Could, but didn't gentrify")
 
+crimes_wide_no_auto <- tract_aggregated_no_auto %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = c(Theft, Violent))
+crimes_wide_no_auto$canGent_gentrified <- relevel(crimes_wide_no_auto$canGent_gentrified, ref = "Could, but didn't gentrify")
+
 crimes_wide_sp <- tract_aggregated_sp %>%
   st_drop_geometry() %>%
   pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = c(Theft, Violent, violent_per_1000, theft_per_1000))
 crimes_wide_sp$canGent_gentrified <- relevel(crimes_wide_sp$canGent_gentrified, ref = "Could, but didn't gentrify")
 ```
+
 
 ### Violent crimes in Minneapolis
 
@@ -49,6 +59,29 @@ minn_violent22 <- glm(Violent_2022 ~ canGent_gentrified + Violent_2010 + offset(
 summary(minn_violent22)
 ```
 
+#### Check residuals for spatial autocorrelation
+
+```{r}
+Rook <- poly2nb(min, queen = FALSE)
+min$residuals <- resid(minn_violent20)
+min %>%
+  ggplot()+
+  geom_sf(aes(fill = residuals))+
+  scale_fill_gradient2(mid = "white", high = "red", low = "blue")+
+  theme_classic()+
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.line = element_blank(), 
+        plot.title.position = "plot", 
+        plot.title = element_text(family = "mono"), 
+        legend.text = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono"))+
+  labs(title = "Poisson Residuals: Minneapolis Violent Crime", fill = "Residual")
+
+spdep::moran.test(min$residuals, nb2listw(Rook, style = "B"), randomisation = FALSE, alternative = "two.sided")
+```
+
+
 ### Theft in Minneapolis 
 
 ```{r}
@@ -63,6 +96,22 @@ summary(minn_theft20)
 minn_theft22 <- glm(Theft_2022 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
     data = crimes_wide_minn, family = poisson(link=log))
 summary(minn_theft22)
+```
+
+### Theft in Minneapolis without Autotheft
+
+```{r}
+minn_theft19_na <- glm(Theft_2019 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
+    data = crimes_wide_no_auto, family = poisson(link=log))
+summary(minn_theft19_na)
+
+minn_theft20_na <- glm(Theft_2020 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
+    data = crimes_wide_no_auto, family = poisson(link=log))
+summary(minn_theft20_na)
+
+minn_theft22_na <- glm(Theft_2022 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
+    data = crimes_wide_no_auto, family = poisson(link=log))
+summary(minn_theft22_na)
 ```
 
 ## Saint Paul Models

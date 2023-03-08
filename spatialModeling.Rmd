@@ -9,7 +9,146 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+This is the 8th file in my honors project and adds spatial components to the Poisson regression models we created. 
 
+```{r}
+library(sf)
+library(tidyverse)
+library(spdep)
+library(CARBayes)
+```
+
+```{r}
+load("Data/CrimeCleaned/tract_aggregated_minneapolis.RData")
+load("Data/CrimeCleaned/tract_aggregated_sp.RData")
+load("Data/CrimeCleaned/tract_aggregated_no_auto.RData")
+```
+
+## Clean up data and make it ready for spatial models
+
+Minneapolis
+
+```{r}
+crimes_wide_minn <- tract_aggregated %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = c(Theft, Violent, violent_per_1000, theft_per_1000))
+crimes_wide_minn$canGent_gentrified <- relevel(crimes_wide_minn$canGent_gentrified, ref = "Could, but didn't gentrify")
+
+violent2020 <- tract_aggregated %>%
+  st_drop_geometry() %>%
+  filter(year == 2020) %>%
+  rename("Violent_2020" = "Violent") %>%
+  dplyr::select(Violent_2020)
+
+theft2020 <- tract_aggregated %>%
+  st_drop_geometry() %>%
+  filter(year == 2020) %>%
+  rename("Theft_2020" = "Theft") %>%
+  dplyr::select(Theft_2020)
+
+min <- tract_aggregated %>%
+  filter(year == 2010) %>%
+  rename("Violent_2010" = "Violent", 
+         "Theft_2010" = "Theft") %>%
+  cbind(violent2020, theft2020)
+
+min$canGent_gentrified <- relevel(min$canGent_gentrified, ref = "Could, but didn't gentrify")
+```
+
+Minneapolis no autotheft
+
+```{r}
+crimes_wide_no_auto <- tract_aggregated_no_auto %>%
+  st_drop_geometry() %>%
+  pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = c(Theft, Violent))
+crimes_wide_no_auto$canGent_gentrified <- relevel(crimes_wide_no_auto$canGent_gentrified, ref = "Could, but didn't gentrify")
+
+theft2020_noauto <- tract_aggregated_no_auto %>%
+  st_drop_geometry() %>%
+  filter(year == 2020) %>%
+  rename("Theft_2020" = "Theft") %>%
+  dplyr::select(Theft_2020)
+
+min_no_auto <- tract_aggregated_no_auto%>%
+  filter(year == 2010) %>%
+  rename("Theft_2010" = "Theft") %>%
+  cbind(theft2020_noauto)
+
+min_no_auto$canGent_gentrified <- relevel(min_no_auto$canGent_gentrified, ref = "Could, but didn't gentrify")
+```
+
+## Spatial modeling for Minneapolis
+
+```{r}
+centroids <- st_centroid(st_geometry(min), of_largest_polygon = TRUE)
+Rook <- poly2nb(min, queen = FALSE)
+Queen <- poly2nb(min, queen=TRUE)
+KNN <- knn2nb(knearneigh(centroids, k=3))
+nb_R_net <- nb2lines(nb = Rook, coords = centroids, as_sf = TRUE)
+nb_KNN_net <- nb2lines(nb = KNN, coords = centroids, as_sf = TRUE)
+```
+
+We can see that there is spatial correlation in our residuals for the non-spatial model
+
+```{r}
+minn_violent20 <- glm(Violent_2020 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = poisson(link=log))
+summary(minn_violent20)
+
+min$residuals <- resid(minn_violent20)
+min %>%
+  ggplot()+
+  geom_sf(aes(fill = residuals))+
+  scale_fill_gradient2(mid = "white", high = "red", low = "blue")+
+  theme_classic()+
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.line = element_blank(), 
+        plot.title.position = "plot", 
+        plot.title = element_text(family = "mono"), 
+        legend.text = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono"))+
+  labs(title = "Poisson Residuals: Minneapolis Violent Crime", fill = "Residual")
+
+spdep::moran.test(min$residuals, nb2listw(Rook, style = "B"), randomisation = FALSE, alternative = "two.sided")
+```
+
+```{r}
+W <- nb2mat(Queen, style = "B", zero.policy = TRUE)
+Z <- matrix(0.01, ncol = 115, nrow = 115) - diag(.01, ncol = 115, nrow = 115)
+
+carb_minn2020_crime <- S.CARdissimilarity(formula = Violent_2020 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)), data = min, family = "poisson", W=W, Z=list(Z=Z), W.binary =TRUE, burnin=10000, n.sample = 30000, thin=20)
+carb_minn2020_crime
+
+min$carb_minn2020_resid <- resid(carb_minn2020_crime, type = "response")
+spdep::moran.test(min$carb_minn2020_resid, nb2listw(Rook, style = "B"), alternative = "two.sided")
+
+carb_minn2020_theft <- S.CARdissimilarity(formula = Theft_2020 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)), data = min, family = "poisson", W=W, Z=list(Z=Z), W.binary =TRUE, burnin=10000, n.sample = 30000, thin=20)
+carb_minn2020_theft
+```
+
+```{r}
+min %>%
+  ggplot()+
+  geom_sf(aes(fill = carb_minn2020_resid))+
+  scale_fill_gradient2(mid = "white", high = "red", low = "blue")+
+  theme_classic()+
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.line = element_blank(), 
+        plot.title.position = "plot", 
+        plot.title = element_text(family = "mono"), 
+        legend.text = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono"))+
+  labs(title = "Poisson Residuals: Minneapolis Violent Crime", fill = "Residual")
+
+spdep::moran.test(min$carb_minn2020_resid, nb2listw(Rook, style = "B"), randomisation = FALSE, alternative = "two.sided")
+```
+
+## Spatial modeling for Minneapolis theft (no auto)
+
+```{r}
+carb_minn2020_noauto <- S.CARdissimilarity(formula = Theft_2020 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)), data = min_no_auto, family = "poisson", W=W, Z=list(Z=Z), W.binary =TRUE, burnin=10000, n.sample = 30000, thin=20)
+carb_minn2020_noauto
 ```
 

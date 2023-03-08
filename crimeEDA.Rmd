@@ -9,6 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+This is the 6th file in my data cleaning and exploration process. \
+Steps in this file: Exploratory graphs using cleaned Minneapolis and Saint Paul crime data. 
+
 ## Data Loading 
 
 ```{r}
@@ -23,8 +26,10 @@ library(viridis)
 load('Data/tractData/cleaned/gent_clean.RData')
 
 #Minneapolis
+load("Data/Crime/minneapolisCrime.RData")
 load('Data/CrimeCleaned/tract_aggregated_minneapolis.RData')
 load('Data/CrimeCleaned/tract_points_minneapolis.RData')
+load('Data/CrimeCleaned/tract_aggregated_no_auto.RData')
 
 #Saint Paul
 load('Data/CrimeCleaned/tract_aggregated_sp.RData')
@@ -44,6 +49,16 @@ tract_aggregated <- tract_aggregated %>%
          theft_1000_apprx = 1000*(Theft/pop_apprx)) %>%
   ungroup()
 
+tract_aggregated_no_auto <- tract_aggregated_no_auto %>%
+  group_by(tractmod) %>%
+  mutate(yearly_dif = (population_2020 - population_2010)/10,
+         year = as.numeric(year),
+         pop_apprx = case_when(year %in% 2010:2019 ~ population_2010 + yearly_dif*(year-2010), 
+                               TRUE ~ population_2020),
+         violent_1000_apprx = 1000*(Violent/pop_apprx), 
+         theft_1000_apprx = 1000*(Theft/pop_apprx)) %>%
+  ungroup()
+
 tract_aggregated_sp <- tract_aggregated_sp %>%
   group_by(tractmod) %>%
   mutate(yearly_dif = (population_2020 - population_2010)/10,
@@ -53,6 +68,26 @@ tract_aggregated_sp <- tract_aggregated_sp %>%
          violent_1000_apprx = 1000*(Violent/pop_apprx), 
          theft_1000_apprx = 1000*(Theft/pop_apprx)) %>%
   ungroup()
+```
+
+Graph of type of thefts in Minneapolis overtime
+
+```{r}
+minneapolisCrime <- minneapolisCrime %>%
+  filter(year != 2023) %>%
+  mutate(offenseCat = case_when(Offense %in% c("THEFT", "TFMV", "BURGD", "AUTOTH", "BURGB", "BIKETF", "TMVP", "THFTSW", "SHOPLF", "TFPER", "TBLDG", "CARJCK", "MVTHFT", "COINOP", "SCRAP", "POCKET", "PETIT", "PKGTHEFT", "LOOT") ~ "Theft", 
+                   Offense %in% c("ASLT2", "ROBPER", "CSCR", "DASTR", "DASLT2", "ASLT3", "ROBBIZ", "ROBPAG", "ARSON", "ASLT4", "DASLT3", "MURDR", "ASLT1", "ADLTTN", "DASLT1", "DISARM", "ABSVAR") ~ "Violent",
+                   TRUE ~ "random")) %>% 
+  filter(offenseCat != "random")
+
+minneapolisCrime %>%
+  count(Offense, year) %>%
+  filter(Offense %in% c("THEFT", "TFMV", "BURGD", "AUTOTH")) %>%
+  ggplot(aes(x=as.numeric(year), y=n, color = Offense))+
+  geom_point()+
+  geom_line()+
+  theme_classic()+
+  scale_x_continuous(breaks = c(2010:2022))
 ```
 
 Explore the yearly number of crimes per 1000 people by tract gentrification status in Minneapolis
@@ -79,6 +114,17 @@ tract_aggregated %>%
   geom_point()+
   theme_classic()+
   scale_x_continuous(breaks = c(2010:2022))
+
+tract_aggregated_no_auto %>%
+  st_drop_geometry() %>%
+  group_by(canGent_gentrified,year) %>%
+  summarize(avg = mean(theft_1000_apprx)) %>%
+  mutate(year = as.numeric(year)) %>%
+  ggplot(aes(x=year, y=avg, color = canGent_gentrified))+
+  geom_line()+
+  geom_point()+
+  theme_classic()+
+  scale_x_continuous(breaks = c(2010:2022))
 ```
 
 Explore 2020 distribution of violent crimes.
@@ -86,14 +132,14 @@ Explore 2020 distribution of violent crimes.
 ```{r}
 mn2020 <- tract_aggregated %>%
   filter(year == 2020) %>%
-  select(tractmod, year, violent_1000_apprx) %>%
+  dplyr::select(tractmod, year, violent_1000_apprx) %>%
   mutate(violent_d = case_when(violent_1000_apprx <=5 ~ "0-5",
                                violent_1000_apprx >6 & violent_1000_apprx  <=10 ~ "6-10",
                                violent_1000_apprx  >10 & violent_1000_apprx <= 15 ~ "11-15", 
                                TRUE ~ "16+"))
 sp2020 <- tract_aggregated_sp %>%
   filter(year == 2020) %>%
-  select(tractmod, year, violent_1000_apprx) %>%
+  dplyr::select(tractmod, year, violent_1000_apprx) %>%
   mutate(violent_d = case_when(violent_1000_apprx <=5 ~ "0-5",
                                violent_1000_apprx >6 & violent_1000_apprx  <=10 ~ "6-10",
                                violent_1000_apprx  >10 & violent_1000_apprx <= 15 ~ "11-15", 
@@ -127,14 +173,14 @@ Explore 2020 distribution of thefts.
 ```{r}
 mn2020 <- tract_aggregated %>%
   filter(year == 2020) %>%
-  select(tractmod, year, theft_1000_apprx) %>%
+  dplyr::select(tractmod, year, theft_1000_apprx) %>%
   mutate(violent_d = case_when(theft_1000_apprx <=25 ~ "0-25",
                                theft_1000_apprx >26 & theft_1000_apprx  <=50 ~ "26-50",
                                theft_1000_apprx  >51 & theft_1000_apprx <= 75 ~ "51-75", 
                                TRUE ~ "76+"))
 sp2020 <- tract_aggregated_sp %>%
   filter(year == 2020) %>%
-  select(tractmod, year, theft_1000_apprx) %>%
+  dplyr::select(tractmod, year, theft_1000_apprx) %>%
   mutate(violent_d = case_when(theft_1000_apprx <=25 ~ "0-25",
                                theft_1000_apprx >25 & theft_1000_apprx  <=50 ~ "26-50",
                                theft_1000_apprx  >51 & theft_1000_apprx <= 75 ~ "51-75", 
@@ -195,6 +241,16 @@ bind_rows(minn_annual, sp_annual) %>%
 
 ```{r}
 gent_minn <- tract_aggregated %>%
+  st_drop_geometry() %>%
+  mutate(canGent = case_when(canGent_gentrified == "Cannot gentrify" ~ "Cannot Gentrify", 
+                                  TRUE ~ "Gentrifiable")) %>%
+  group_by(year, canGent) %>%
+  summarize(avg_violent = mean(violent_1000_apprx), 
+            avg_theft = mean(theft_1000_apprx)) %>%
+  mutate(year = as.numeric(year), 
+         city = "Minneapolis")
+
+gent_minn_no_auto <- tract_aggregated_no_auto %>%
   st_drop_geometry() %>%
   mutate(canGent = case_when(canGent_gentrified == "Cannot gentrify" ~ "Cannot Gentrify", 
                                   TRUE ~ "Gentrifiable")) %>%

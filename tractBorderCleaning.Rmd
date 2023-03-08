@@ -260,9 +260,7 @@ save(final_condensed_msp, file = "Data/tractData/cleaned/final_condensed_msp.RDa
 
 ```{r}
 tracts <- final_condensed_msp$tractmod
-
 colnames(census2000) <-paste(colnames(census2000), "2000", sep="_")
-
 census2000groups <- census2000 %>%
   mutate(tract_2000 = as.numeric(tract_2000)) %>%
   filter(tract_2000 %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03)) %>%
@@ -284,7 +282,6 @@ census2000groups <- census2000 %>%
   mutate(grouped = c(249.04, 408.04, 1263.00)) %>%
   rename("tract_2000" = "grouped") %>%
   mutate(county_2000 = c("Hennepin", "Ramsey", "Hennepin"))
-
 census2000clean <- census2000 %>%
   mutate(tract_2000 = as.numeric(tract_2000)) %>%
   filter(!(tract_2000 %in% c(249.01, 249.02, 1023.00, 1029.00, 408.02, 408.03)), tract_2000 %in% tracts) %>%
@@ -294,5 +291,3 @@ census2000clean <- census2000 %>%
 ```{r}
 save(census2000clean, file = "Data/tractData/cleaned/acs2000clean.RData")
 ```
-
-

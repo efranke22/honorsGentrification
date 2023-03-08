@@ -115,17 +115,6 @@ minneapolisCrime <- minneapolisCrime %>%
   filter(offenseCat != "random")
 ```
 
-```{r}
-minneapolisCrime %>%
-  count(Offense, year) %>%
-  filter(Offense %in% c("THEFT", "TFMV", "BURGD", "AUTOTH")) %>%
-  ggplot(aes(x=as.numeric(year), y=n, color = Offense))+
-  geom_point()+
-  geom_line()+
-  theme_classic()+
-  scale_x_continuous(breaks = c(2010:2022))
-```
-
 Make the crime coordinates sf geometry points of the right coordinate system.
 
 ```{r}
@@ -170,9 +159,29 @@ tract_points <- st_join(minn_sf, left = FALSE, gent_clean["tractmod"]) %>%
   filter(tract != 332)
 ```
 
+Create additional file that removes auto thefts from the theft category.
+
+```{r}
+crimes_per_tract_no_auto <- tract_points %>%
+  filter(Offense != "AUTOTH") %>%
+  st_drop_geometry() %>%
+  group_by(tract, year, offenseCat, .drop=FALSE) %>%
+  count() %>%
+  pivot_wider(names_from = year, values_from = n) %>%
+  replace(is.na(.),0) %>%
+  pivot_longer(cols = c(`2010`:`2022`),names_to = "year", values_to = "n") %>%
+  pivot_wider(names_from = offenseCat, values_from = n) %>%
+  filter(tract != 332)
+
+tract_aggregated_no_auto <- gent_clean %>%
+  right_join(crimes_per_tract_no_auto, by = c("tractmod" = "tract"))
+```
+
+
 ```{r,eval=FALSE}
 save(tract_aggregated, file = 'Data/CrimeCleaned/tract_aggregated_minneapolis.RData')
 save(tract_points, file = "Data/CrimeCleaned/tract_points_minneapolis.RData")
+save(tract_aggregated_no_auto, file = 'Data/CrimeCleaned/tract_aggregated_no_auto.RData')
 ```
 
 ## Cleaning saint paul crime data
