@@ -74,18 +74,17 @@ gent_clean %>%
   geom_sf(aes(fill=canGent_gentrified), lwd = 0.4)+
   geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
   theme_classic()+
-  #scale_color_manual(values = c("#F0E442", "#009E73"))+
-  labs(title = "MSP census tract gentrification status in 2020", fill = "Gentrifiable", x = "", y = "", color = "City")+
-  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
+  labs(title = "Minneapolis-Saint Paul 2020 census tract gentrification status", fill = "Status", x = "", y = "")+
+  #annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
   theme(axis.line = element_blank(), 
         axis.text = element_blank(), 
         axis.ticks = element_blank(),
-        legend.title = element_markdown(family = "mono"),
+        legend.title = element_markdown(family = "mono", size =9),
         plot.title.position = "plot",
-        legend.text = element_markdown(family = "mono"),
-        plot.title = element_markdown(family = "mono", size = 12))+
-  scale_fill_manual(values = c("#0072B2", "#D55E00", "#F0E442"))+
-  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
+        legend.text = element_markdown(family = "mono", size = 8),
+        plot.title = element_markdown(family = "mono", size = 10))+
+  scale_fill_manual(values = c("#898A99", "#C6431F", "#FFC050"))+
+  #annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
   guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
 ```
 
