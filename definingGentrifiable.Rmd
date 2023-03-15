@@ -88,11 +88,11 @@ roads_sub <- st_crop(roads,st_bbox(gentrifiable))
 
 gentrifiable %>%
   ggplot()+
-  geom_sf(aes(fill=canGent2010), lwd = 0.4, color = "gray")+
+  geom_sf(aes(fill=canGent2010), lwd = 0.4)+
   geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
   theme_classic()+
   labs(title = "2010 gentrification eligibility in Minneapolis-Saint Paul census tracts", fill = "Eligible to gentrify", x = "", y = "")+
-  #annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
+  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
   theme(axis.line = element_blank(), 
         axis.text = element_blank(), 
         axis.ticks = element_blank(),
@@ -100,8 +100,8 @@ gentrifiable %>%
         legend.text =  element_markdown(family = "mono"),
         plot.title.position = "plot", 
         plot.title = element_markdown(family = "mono", size = 10))+
-  scale_fill_manual(values = c("#898A99", "#C6431F"))
-  #annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")
+  scale_fill_manual(values = c("#898A99", "#C6431F"))+
+  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")
 ```
 
 Write the gentrifiable file to the Data folder for future use. 
