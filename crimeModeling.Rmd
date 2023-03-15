@@ -46,6 +46,31 @@ crimes_wide_sp$canGent_gentrified <- relevel(crimes_wide_sp$canGent_gentrified, 
 ### Violent crimes in Minneapolis
 
 ```{r}
+var(crimes_wide_minn$Violent_2020)
+mean(crimes_wide_minn$Violent_2020)
+
+var(crimes_wide_minn$Theft_2020)
+mean(crimes_wide_minn$Theft_2020)
+
+crimes_wide_minn %>%
+  select(tractmod, Violent_2020, Theft_2020) %>%
+  rename("Theft" = "Theft_2020", 
+         "Violent" = "Violent_2020") %>%
+  pivot_longer(cols = c(Theft, Violent), names_to = "crime_type", values_to = "Count") %>%
+  ggplot(aes(x=Count))+
+  geom_density()+
+  facet_wrap(~crime_type, scales = "free")+
+  theme_classic()+
+  theme(strip.background = element_blank(), 
+        strip.text = element_text(family = "mono", face = "bold"),
+        plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size =10), 
+        axis.text = element_text(family = "mono"),
+        axis.title = element_text(family = "mono"))+
+  labs(title = "Distribution of 2020 crimes for 115 Minneapolis census tracts", x="Number of crimes", y = "Density")
+```
+
+```{r}
 minn_violent19 <- glm(Violent_2019 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
     data = crimes_wide_minn, family = poisson(link=log))
 summary(minn_violent19)
@@ -58,6 +83,15 @@ minn_violent22 <- glm(Violent_2022 ~ canGent_gentrified + Violent_2010 + offset(
     data = crimes_wide_minn, family = poisson(link=log))
 summary(minn_violent22)
 ```
+
+Models with quasipoisson
+
+```{r}
+violent20_quasi <- glm(Violent_2020 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family =poisson(link=log))
+summary(violent20_quasi)
+```
+
 
 #### Check residuals for spatial autocorrelation
 
@@ -88,10 +122,6 @@ spdep::moran.test(min$residuals, nb2listw(Rook, style = "B"), randomisation = FA
 minn_theft19 <- glm(Theft_2019 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
     data = crimes_wide_minn, family = poisson(link=log))
 summary(minn_theft19)
-
-minn_theft20 <- glm(Theft_2020 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
-    data = crimes_wide_minn, family = poisson(link=log))
-summary(minn_theft20)
 
 minn_theft22 <- glm(Theft_2022 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
     data = crimes_wide_minn, family = poisson(link=log))
