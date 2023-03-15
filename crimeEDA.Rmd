@@ -24,6 +24,7 @@ library(sf)
 library(viridis)
 
 load('Data/tractData/cleaned/gent_clean.RData')
+roads <- st_read("ShpData/tl_2019_27_prisecroads")
 
 #Minneapolis
 load("Data/Crime/minneapolisCrime.RData")
@@ -81,53 +82,119 @@ minneapolisCrime <- minneapolisCrime %>%
   filter(offenseCat != "random")
 
 minneapolisCrime %>%
-  count(Offense, year) %>%
-  filter(Offense %in% c("THEFT", "TFMV", "BURGD", "AUTOTH")) %>%
-  ggplot(aes(x=as.numeric(year), y=n, color = Offense))+
+  filter(offenseCat != "random") %>%
+  mutate(OffenseGroup = case_when(Offense %in% c("AUTOTH", "TMVP", "CARJCK", "MVTHFT") ~ "Auto Theft", 
+                                  Offense %in% c("THEFT", "TFMV", "BURGD", "BURGB", "BIKETF", "THFTSW", "SHOPLF", "TFPER", "TBLDG", "COINOP", "SCRAP", "POCKET", "PETIT", "PKGTHEFT", "LOOT") ~ "Theft (no auto)", 
+                                   TRUE ~ "Violent")) %>%
+  count(OffenseGroup, year) %>%
+  ggplot(aes(x=as.numeric(year), y=n, color = OffenseGroup))+
   geom_point()+
   geom_line()+
   theme_classic()+
-  scale_x_continuous(breaks = c(2010:2022))
+  scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018, 2020, 2022))+
+  scale_y_continuous(labels = scales::comma)+
+  labs(title = "Minneapolis Annual Crime Count", color = "Offense", y = "Count", x = "Year")+
+  scale_color_manual(values = c("#024D72", "#6FA1B7", "#D07061"))+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono"), 
+        legend.text = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono"), 
+        axis.title = element_text(family = "mono"), 
+        axis.text = element_text(family = "mono"))
 ```
 
-Explore the yearly number of crimes per 1000 people by tract gentrification status in Minneapolis
+Spatial crime patterns: Theft and violent crime maps for 2010 and 2020 in Minneapolis.
+
+```{r}
+tract_aggregated %>%
+  filter(year %in% c(2010, 2020)) %>%
+  mutate(violentD= case_when(Violent <=10 ~ "0-10",
+                               Violent >10 & Violent  <=25 ~ "11-25",
+                               Violent >25 & Violent <= 50 ~ "26-50", 
+                               Violent >50 & Violent <= 100 ~ "51-100",
+                               TRUE ~ "101+")) %>%
+  mutate(violentD= fct_relevel(violentD, levels = c("0-10", "11-25", "26-50", "51-100", "101+"))) %>%
+  ggplot()+
+  geom_sf(aes(fill = violentD))+
+  facet_wrap(~year)+
+  scale_fill_brewer(palette = "Blues")+
+  theme_classic()+
+  theme(axis.line = element_blank(), 
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust=0.5, family = "mono"), 
+        strip.background = element_blank(), 
+        legend.title = element_text(family = "mono"), 
+        legend.text = element_text(family = "mono"), 
+        strip.text = element_text(family = "mono"))+
+  labs(title = "Violent crime count by census tract", fill = "Count")
+
+tract_aggregated %>%
+  filter(year %in% c(2010, 2020)) %>%
+  mutate(theftD= case_when(Theft <=90 ~ "38-90",
+                               Theft >90 & Theft  <=130 ~ "91-130",
+                               Theft >130 & Theft <= 200 ~ "131-200", 
+                               TRUE ~ "201+")) %>%
+  mutate(theftD= fct_relevel(theftD, levels = c("38-90", "91-130", "131-200", "201+"))) %>%
+  ggplot()+
+  geom_sf(aes(fill = theftD))+
+  facet_wrap(~year)+
+  scale_fill_brewer(palette = "Blues")+
+  theme_classic()+
+  #annotate("point", x = -93.2277, y = 44.974, colour = "white", size = 1) +
+  theme(axis.line = element_blank(), 
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust=0.5, family = "mono"), 
+        strip.background = element_blank(), 
+        legend.title = element_text(family = "mono"), 
+        legend.text = element_text(family = "mono"), 
+        strip.text = element_text(family = "mono"))+
+  labs(title = "Theft count by census tract", fill = "Count", x = "", y="")
+```
+
+Table: Theft and Violent Crime by gentrification status
 
 ```{r}
 tract_aggregated %>%
   st_drop_geometry() %>%
-  group_by(canGent_gentrified,year) %>%
-  summarize(avg = mean(violent_1000_apprx)) %>%
-  mutate(year = as.numeric(year)) %>%
-  ggplot(aes(x=year, y=avg, color = canGent_gentrified))+
-  geom_line()+
-  geom_point()+
-  theme_classic()+
-  scale_x_continuous(breaks = c(2010:2022))
+  filter(year %in% c(2010, 2020)) %>%
+  dplyr::select(population_2020, population_2010, bachelors_2010, bachelors_2020, medianIncome_2010, medianIncome_2020, medianHomeValue_2020, medianHomeValue_2010, medContractRent_2010, medContractRent_2020, canGent2010, gentrified, Violent, Theft, year) %>%
+  mutate(Gentrification_status = case_when(canGent2010 == "No" ~ "Cannot Gentrify", 
+                                           canGent2010 == "Yes" & gentrified == "0" ~ "Could, but didn't gentrify",
+                                           TRUE ~ "Gentrified")) %>%
+  group_by(Gentrification_status, year) %>%
+  summarize(`2010 Population` = mean(population_2010), 
+            `2020 Population` = mean(population_2020), 
+            `2010 Bachelors %` = weighted.mean(bachelors_2010/population_2010, population_2010),
+            `2020 Bachelors %` = weighted.mean(bachelors_2020/population_2020, population_2020),
+            `2010 Median Income` = weighted.mean(medianIncome_2010, population_2010), 
+            `2020 Median Income` = weighted.mean(medianIncome_2020, population_2020, na.rm=TRUE),
+            `2010 Median Home Value` = weighted.mean(medianHomeValue_2010, population_2010), 
+            `2020 Median Home Value` = weighted.mean(medianHomeValue_2020, population_2020, na.rm=TRUE),
+            `2010 Median Contract Rent` = weighted.mean(medContractRent_2010, population_2010), 
+            `2020 Median Contract Rent` = weighted.mean(medContractRent_2020, population_2020), 
+            `2010 Violent` = weighted.mean(Violent, population_2010), 
+            `2020 Theft` = weighted.mean(Theft, population_2020))
 
-tract_aggregated %>%
-  st_drop_geometry() %>%
-  group_by(canGent_gentrified,year) %>%
-  summarize(avg = mean(theft_1000_apprx)) %>%
-  mutate(year = as.numeric(year)) %>%
-  ggplot(aes(x=year, y=avg, color = canGent_gentrified))+
-  geom_line()+
-  geom_point()+
-  theme_classic()+
-  scale_x_continuous(breaks = c(2010:2022))
+(17.98/3360)*1000
+(22.51/3751)*1000
+(165.66/3360)*1000
+(169.48/3751)*1000
+(46.43/3461)*1000
+(63.92/3978)*1000
+(189.36/3461)*1000
+(229.59/3978)*1000
+(33.98/2954)*1000
+(46.44/3176)*1000
+(138.46/2954)*1000
+(182.34/3176)*1000
 
-tract_aggregated_no_auto %>%
-  st_drop_geometry() %>%
-  group_by(canGent_gentrified,year) %>%
-  summarize(avg = mean(theft_1000_apprx)) %>%
-  mutate(year = as.numeric(year)) %>%
-  ggplot(aes(x=year, y=avg, color = canGent_gentrified))+
-  geom_line()+
-  geom_point()+
-  theme_classic()+
-  scale_x_continuous(breaks = c(2010:2022))
+summary = data.frame(`Variable` = c("Violent Crimes/1000 residents", "", "Thefts/1000 residents", "", "Population", "", "Bachelor's %", "", "Median Income", "", "Median Home Value", "", "Median Contract Rent", ""), `Cannot gentrify` = c("5.4", "6","49.3", "45.2", "3,360", "3,751", "35", "39", "67,409", "93,704", "284,316", "326,643", "875", "1,185"), `Could, but didn't gentrify`= c("13.4", "16.1", "54.7", "57.7", "3,461", "3,978", "16", "17", "28,531", "41,773", "202,200", "213,995", "681", "901"), Gentrified= c("11.5", "14.6", "46.9", "57.4", "2,954", "3,176", "18", "29", "33,493", "53,371", "203,519", "250,008", "668", "941"), check.names = FALSE)
+xtable(summary)
 ```
 
-Explore 2020 distribution of violent crimes.
+Explore 2020 distribution of violent crimes (as a rate)
 
 ```{r}
 mn2020 <- tract_aggregated %>%
@@ -166,9 +233,23 @@ bind_rows(mn2020, sp2020) %>%
         axis.ticks = element_blank(), 
         axis.line = element_blank(), 
         legend.text = element_text(family = "mono"))
+
+mn2020 %>%
+mutate(violent_d = fct_relevel(violent_d, levels = c("0-5", "6-10", "11-15", "16+"))) %>%
+  ggplot()+
+  geom_sf(aes(fill =violent_d), override.order=TRUE)+
+  theme_classic()+
+  scale_fill_brewer(palette = "Blues")+
+  labs(title = "Violent Crime", fill = "", y = "", x = "")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size = 10, hjust=0.5), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.line = element_blank(), 
+        legend.text = element_text(family = "mono"))
 ```
 
-Explore 2020 distribution of thefts.
+Explore 2020 distribution of thefts (as a rate)
 
 ```{r}
 mn2020 <- tract_aggregated %>%
@@ -207,9 +288,23 @@ bind_rows(mn2020, sp2020) %>%
         axis.ticks = element_blank(), 
         axis.line = element_blank(), 
         legend.text = element_text(family = "mono"))
+
+mn2020 %>%
+  mutate(violent_d = fct_relevel(violent_d, levels = c("0-25", "26-50", "51-65", "75+"))) %>%
+  ggplot()+
+  geom_sf(aes(fill =violent_d), override.order=TRUE)+
+  theme_classic()+
+  scale_fill_brewer(palette = "Blues")+
+  labs(title = "Theft", fill = "", y = "", x = "")+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size = 10, hjust=0.5), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.line = element_blank(), 
+        legend.text = element_text(family = "mono"))
 ```
 
-Look at overall trend in number of crimes per year.
+Look at overall trend in number of crimes per year
 
 ```{r}
 minn_annual <- tract_points %>%
@@ -308,7 +403,20 @@ rbind(gent_minn, gent_sp) %>%
         strip.text = element_text(family = "mono", size =10, face = "bold"))
 ```
 
+```{r}
+library(xtable)
+saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report.csv")
+pain <- saintpaulcrime %>%
+  filter(ObjectId %in% c(374306, 417624, 3477, 350087, 14)) %>%
+  mutate(order = c(1, 2, 4, 3, 5)) %>%
+  arrange(order) %>%
+  select(DATE, INCIDENT, BLOCK) %>%
+  as.data.frame()
 
+saintpaulcrime %>%
+  filter(str_detect(BLOCK, " SNELLING"))
+xtable(pain, caption = "Table N: Saint Paul Crime Incident Data")
+```
 
 
 
