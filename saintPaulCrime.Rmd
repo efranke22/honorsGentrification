@@ -110,7 +110,7 @@ blocksLatLng <- sp %>%
   mutate(address = paste0(address, ", Saint Paul, MN")) %>%
   tidygeocoder::geocode(address, method = 'osm', lat = latitude, long = longitude)
 
-save(blocksLatLng, file = "Data/Crime/CrimeCleaned/blocksLatLng.RData")
+save(blocksLatLng, file = "Data/CrimeCleaned/blocksLatLng.RData")
 ```
 
 Gather intersections
