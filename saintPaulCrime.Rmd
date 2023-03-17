@@ -1,0 +1,114 @@
+---
+title: "Saint Paul Crime"
+author: "Erin Franke"
+date: "2023-03-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report_2023.csv")
+```
+
+Get types of crime of interest: have 185,415 observations from 2015-2022.
+
+```{r}
+saintpaulcrime <- saintpaulcrime %>%
+  mutate(year = as.numeric(substr(DATE, 1, 4))) %>%
+  filter(year != 2014, year!=2023) %>%
+  mutate(OffenseCat = case_when(INCIDENT %in% c("Theft", "Burglary", "Vandalism", "Narcotics", "Criminal Damage", "Graffiti", "THEFT") ~ "Theft", 
+                                INCIDENT == "Auto Theft" ~ "Auto Theft",
+                                INCIDENT %in% c("Simple Asasult Dom.", "Robbery", "Agg. Assault", "Agg. Assault Dom.", "Rape", "Arson", "Simple Assault Dom.", "Simple Assault Dom", "Homicide", "Agg. Assault Dom") ~ "Violent", 
+                                TRUE ~ "random")) %>%
+  filter(OffenseCat != "random")
+```
+
+Count number of crimes occurring at an intersection: 18,894.
+
+```{r}
+saintpaulcrime %>%
+  filter(str_detect(BLOCK, " & ")| str_detect(BLOCK, " AND "))
+```
+
+Remainder of crimes
+
+```{r}
+sp <- saintpaulcrime %>%
+  filter(!str_detect(BLOCK, " & "), !str_detect(BLOCK, " AND ")) %>%
+  mutate(street_address = word(BLOCK, 1),
+         street_address = str_replace(street_address, "X", "0"))
+sp$BLOCK <- sapply(sapply(strsplit(sp$BLOCK, split = ' '), function(x) x[2:length(x)]), paste, collapse = ' ')
+  
+sp <- sp %>%
+  mutate(BLOCK = str_replace(BLOCK, "OLDHUDSON", "OLD HUDSON"), 
+         BLOCK = str_replace(BLOCK, "ANNARBOR", "ANN ARBOR"), 
+         BLOCK = str_replace(BLOCK, "BARGECHANNEL", "BARGE CHANNEL"), 
+         BLOCK = str_replace(BLOCK, "BATTLECREEK", "BATTLE CREEK"), 
+         BLOCK = str_replace(BLOCK, "CESARCHAVEZ", "CESAR CHAVEZ"), 
+         BLOCK = str_replace(BLOCK, "CHEROKEEHTS", "CHEROKEE HTS"), 
+         BLOCK = str_replace(BLOCK, "CROCUSHILL", "CROCUS HILL"), 
+         BLOCK = str_replace(BLOCK, "CROSBYFARM", "CROSBY FARM"), 
+         BLOCK = str_replace(BLOCK, "CROSBYLAKE", "CROSBY LAKE"),
+         BLOCK = str_replace(BLOCK, "DANPATCH", "DAN PATCH"), 
+         BLOCK = str_replace(BLOCK, "DOROTHYDAY", "DOROTHY DAY"),
+         BLOCK = str_replace(BLOCK, "DRJUSTUSOHAGE", "DR JUSTUS OHAGE"), 
+         BLOCK = str_replace(BLOCK, "EDGCUMBE", "EDGECUMBE"), 
+         BLOCK = str_replace(BLOCK, "ENERGYPARK", "ENERGY PARK"), 
+         BLOCK = str_replace(BLOCK, "GRANDHILL", "GRAND HILL"), 
+         BLOCK = str_replace(BLOCK, "HARDENBERGH", "HARDEN BERGH"), 
+         BLOCK = str_replace(BLOCK, "HARRIETISLAND", "HARRIET ISLAND"), 
+         BLOCK = str_replace(BLOCK, "HIDDENFALLS", "HIDDEN FALLS"), 
+         BLOCK = str_replace(BLOCK, "HUNTINGVALLEY", "HUNTING VALLEY"), 
+         BLOCK = str_replace(BLOCK, "IVANWAY", "IVAN WAY"),
+         BLOCK = str_replace(BLOCK, "JEFFERSONCOMMONS", "JEFFERSON COMMONS"), 
+         BLOCK = str_replace(BLOCK, "JOHNIRELAND", "JOHN IRELAND"), 
+         BLOCK = str_replace(BLOCK, "LAFAYETTEFRONTAGE", "LAFAYETTE FRONTAGE"), 
+         BLOCK = str_replace(BLOCK, "LARRYHO", "LARRY HO"), 
+         BLOCK = str_replace(BLOCK, "LOWERAFTON", "LOWER AFTON"), 
+         BLOCK = str_replace(BLOCK, "LOWERSTDENNIS", "LOWER ST DENNIS"), 
+         BLOCK = str_replace(BLOCK, "LYNNHURST", "LYNN HURST"), 
+         BLOCK = str_replace(BLOCK, "MARTINLUTHERKING", "MARTIN LUTHER KING"), 
+         BLOCK = str_replace(BLOCK, "MISSISSIPPIRIVER", "MISSISSIPPI RIVER"), 
+         BLOCK = str_replace(BLOCK, "MORNINGSIDE", "MORNING SIDE"), 
+         BLOCK = str_replace(BLOCK, "MTAIRY", "MT AIRY"), 
+         BLOCK = str_replace(BLOCK, "MTCURVE", "MT CURVE"), 
+         BLOCK = str_replace(BLOCK, "OLDSIXTH", "OLD SIXTH"), 
+         BLOCK = str_replace(BLOCK, "OTTOHUMMER", "OTTO HUMMER"), 
+         BLOCK = str_replace(BLOCK, "PIERCEBUTLER", "PIERCE BUTLER"),
+         BLOCK = str_replace(BLOCK, "PIGSEYELAKE", "PIGSEYE LAKE"), 
+         BLOCK = str_replace(BLOCK, "PTDOUGLAS", "PT DOUGLAS"), 
+         BLOCK = str_replace(BLOCK, "RIVERPARK", "RIVER PARK"), 
+         BLOCK = str_replace(BLOCK, "SPRUCETREE", "SPRUCE TREE"), 
+         BLOCK = str_replace(BLOCK, "STANTHONY", "ST ANTHONY"), 
+         BLOCK = str_replace(BLOCK, "STALBANS", "ST ALBANS"), 
+         BLOCK = str_replace(BLOCK, "STCLAIR", "ST CLAIR"), 
+         BLOCK = str_replace(BLOCK, "STDENNIS", "ST DENNIS"), 
+         BLOCK = str_replace(BLOCK, "STPAUL", "ST PAUL"), 
+         BLOCK = str_replace(BLOCK, "STPETER", "ST PETER"), 
+         BLOCK = str_replace(BLOCK, "TROUTBROOK", "TROUT BROOK"), 
+         BLOCK = str_replace(BLOCK, "UPPERAFTON", "UPPER AFTON"), 
+         BLOCK = str_replace(BLOCK, "UPPERSTDENNIS", "UPPER ST DENNIS"), 
+         BLOCK = str_replace(BLOCK, "VANBUREN", "VAN BUREN"),
+         BLOCK = str_replace(BLOCK, "VANSLYKE", "VAN SLYKE"), 
+         BLOCK = str_replace(BLOCK, "WHEELOCKRIDGE", "WHEELOCK RIDGE"), 
+         BLOCK = str_replace(BLOCK, "WHITEBEAR", "WHITE BEAR"), 
+         BLOCK = str_replace(BLOCK, "WILLIAMTELL", "WILLIAM TELL"), 
+         BLOCK = str_replace(BLOCK, "YACHTCLUB", "YACHT CLUB"), 
+         BLOCK = str_replace(BLOCK, " BD", " BLVD"),
+         BLOCK = str_replace(BLOCK, " PK", " PKWY")) %>%
+  mutate(address = paste(street_address, BLOCK))
+```
+
+Run through the geocoder!! 
+
+```{r}
+sp %>%
+  mutate(address = paste0(address, ", Saint Paul, MN")) %>%
+  tidygeocoder::geocode(address, method = 'osm', lat = latitude, long = longitude)
+```
+
+
