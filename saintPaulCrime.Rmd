@@ -223,8 +223,9 @@ It looks like sometimes the geocoder prefers "AVE" to "AV". But not always? Very
 
 ```{r}
 weirdAVE <- missing %>%
+  filter(str_detect(address, " AV,")| str_detect(address, "ST ANTHONY")) %>%
   mutate(address = str_replace(address, " AV,", " AVE,"), 
-         address = str_replace(address, "ST ANTHONY", "ANTHONY"))
+         address = str_replace(address, "ST ANTHONY", "ANTHONY")) 
 
 weirdLatLngAVE <- weirdAVE %>%
   geocode(address, method = "osm", lat = latitude, long = longitude)
