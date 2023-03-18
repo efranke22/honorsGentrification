@@ -165,12 +165,6 @@ missing <- missing %>%
   filter(!(CASE_NUMBER %in% cleanPA$CASE_NUMBER))
 ```
 
-What else is going wrong with our missing addresses?
-
-```{r}
-missing
-```
-
 For some of the addresses, it requires the direction (N, W, E, S) to be before the street name. 
 
 ```{r}
@@ -187,6 +181,72 @@ rearrangedLatLng <- rearranged %>%
   geocode(address2, method = "osm", lat = latitude, long = longitude)
 save(rearrangedLatLng, file = "Data/CrimeCleaned/rearrangedLatLng.RData")
 ```
+
+I accidentally did two "E" instead of "W" above, so do the same thing for "W" addresses. Don't judge, it takes a long time to run on the geocoder so I am not gonnna rerun them all when I don't have to.
+
+```{r}
+rearrangedW <- missing %>%
+  filter(str_detect(address, "W, Saint Paul, MN")) %>%
+  select(-latitude, -longitude) %>%
+  mutate(number = word(address, 1), 
+         direction = word(address, -4),
+         direction = str_replace(direction, ",", ""), 
+         address2 = paste0(number, " ", direction, " ", word(address, 2, 3), ", ", "Saint Paul, MN")) %>%
+  mutate(address2 = str_replace(address2, "MISSISSIPPI RIVER", " MISSISSIPPI RIVER BLVD"))
+
+rearrangedLatLngW <- rearrangedW %>%
+  geocode(address2, method = "osm", lat = latitude, long = longitude)
+save(rearrangedLatLngW, file = "Data/CrimeCleaned/rearrangedLatLngW.RData")
+```
+
+Rearranging allowed us to bring our total number of missing addresses down to. 
+
+```{r}
+load("Data/CrimeCleaned/rearrangedLatLngW.RData")
+load("Data/CrimeCleaned/rearrangedLatLng.RData")
+
+rearrangedLatLng <- rbind(rearrangedLatLng, rearrangedLatLngW) %>%
+  select(-address2, -number, -direction)
+
+cleanRearranged <- rearrangedLatLng %>%
+  filter(!is.na(latitude))
+missingRearranged <- rearrangedLatLng %>%
+  filter(is.na(latitude))
+
+cleaned <- cleaned %>%
+  rbind(cleanRearranged)
+missing <- missing %>%
+  filter(!(CASE_NUMBER %in% cleanRearranged$CASE_NUMBER))
+```
+
+It looks like sometimes the geocoder prefers "AVE" to "AV". But not always? Very strange in my opinion. Replace this and rerun through geocoder. Also found an error with a particular street so fixing that. 
+
+```{r}
+weirdAVE <- missing %>%
+  mutate(address = str_replace(address, " AV,", " AVE,"), 
+         address = str_replace(address, "ST ANTHONY", "ANTHONY"))
+
+weirdLatLngAVE <- weirdAVE %>%
+  geocode(address, method = "osm", lat = latitude, long = longitude)
+save(weirdLatLngAVE, file = "Data/CrimeCleaned/weirdLatLngAVE.RData")
+```
+
+```{r}
+load("Data/CrimeCleaned/weirdLatLngAVE.RData")
+
+cleanAVE <- weirdLatLngAVE %>%
+  filter(!is.na(latitude))
+missingAVE <- weirdLatLngAVEg %>%
+  filter(is.na(latitude))
+
+cleaned <- cleaned %>%
+  rbind(cleanAVE)
+missing <- missing %>%
+  filter(!(CASE_NUMBER %in% cleanAVE$CASE_NUMBER))
+```
+
+The remaining addresses make me sad. I've tried messing around with some of them and just don't fully know why it won't geocode when it's an address on google maps. I think we need to continue with what we have. 
+
 
 
 Gather intersections. We are able to get 8,165 out of 18,894 (43.2%)
