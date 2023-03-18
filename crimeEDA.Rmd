@@ -418,5 +418,34 @@ saintpaulcrime %>%
 xtable(pain, caption = "Table N: Saint Paul Crime Incident Data")
 ```
 
+# Saint Paul 
+
+```{r}
+saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report_2023.csv")
+saintpaulcrime %>%
+  mutate(year = as.numeric(substr(DATE, 1, 4))) %>%
+  filter(year != 2014, year!=2023) %>%
+  mutate(OffenseCat = case_when(INCIDENT %in% c("Theft", "Burglary", "Vandalism", "Narcotics", "Criminal Damage", "Graffiti", "THEFT") ~ "Theft", 
+                                INCIDENT == "Auto Theft" ~ "Auto Theft",
+                                INCIDENT %in% c("Simple Asasult Dom.", "Robbery", "Agg. Assault", "Agg. Assault Dom.", "Rape", "Arson", "Simple Assault Dom.", "Simple Assault Dom", "Homicide", "Agg. Assault Dom") ~ "Violent", 
+                                TRUE ~ "random")) %>%
+  filter(OffenseCat != "random") %>%
+  count(OffenseCat, year) %>%
+  ggplot(aes(x=as.numeric(year), y=n, color = OffenseCat))+
+  geom_point()+
+  geom_line()+
+  theme_classic()+
+  scale_x_continuous(breaks = c(2015, 2017, 2019, 2021))+
+  scale_y_continuous(labels = scales::comma)+
+  labs(title = "Saint Paul Annual Crime Count", color = "Offense", y = "Count", x = "Year")+
+  scale_color_manual(values = c("#024D72", "#6FA1B7", "#D07061"))+
+  theme(plot.title.position = "plot", 
+        plot.title = element_text(family = "mono"), 
+        legend.text = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono"), 
+        axis.title = element_text(family = "mono"), 
+        axis.text = element_text(family = "mono"))
+```
+
 
 

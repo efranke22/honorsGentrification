@@ -17,7 +17,7 @@ library(sf)
 library(spdep)
 ```
 
-## Minneapolis modeling
+# Minneapolis modeling
 
 ```{r}
 load("Data/CrimeCleaned/tract_aggregated_minneapolis.RData")
@@ -43,17 +43,13 @@ crimes_wide_sp$canGent_gentrified <- relevel(crimes_wide_sp$canGent_gentrified, 
 ```
 
 
-### Violent crimes in Minneapolis
+## Violent crimes in Minneapolis
+
+Poisson model: typically used for skewed distribution.
 
 ```{r}
-var(crimes_wide_minn$Violent_2020)
-mean(crimes_wide_minn$Violent_2020)
-
-var(crimes_wide_minn$Theft_2020)
-mean(crimes_wide_minn$Theft_2020)
-
 crimes_wide_minn %>%
-  select(tractmod, Violent_2020, Theft_2020) %>%
+  dplyr::select(tractmod, Violent_2020, Theft_2020) %>%
   rename("Theft" = "Theft_2020", 
          "Violent" = "Violent_2020") %>%
   pivot_longer(cols = c(Theft, Violent), names_to = "crime_type", values_to = "Count") %>%
@@ -70,6 +66,8 @@ crimes_wide_minn %>%
   labs(title = "Distribution of 2020 crimes for 115 Minneapolis census tracts", x="Number of crimes", y = "Density")
 ```
 
+### ORIGINAL POISSON MODEL
+
 ```{r}
 minn_violent19 <- glm(Violent_2019 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
     data = crimes_wide_minn, family = poisson(link=log))
@@ -78,57 +76,234 @@ summary(minn_violent19)
 minn_violent20 <- glm(Violent_2020 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
     data = crimes_wide_minn, family = poisson(link=log))
 summary(minn_violent20)
+confint(minn_violent20)
 
 minn_violent22 <- glm(Violent_2022 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
     data = crimes_wide_minn, family = poisson(link=log))
 summary(minn_violent22)
+confint(minn_violent22)
 ```
 
-Models with quasipoisson
+### QUASI-POISSON MODEL
 
 ```{r}
-violent20_quasi <- glm(Violent_2020 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
-    data = crimes_wide_minn, family =poisson(link=log))
-summary(violent20_quasi)
+minn_violent19_quasi <- glm(Violent_2019 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = quasipoisson(link=log))
+summary(minn_violent19_quasi)
+
+minn_violent20_quasi <- glm(Violent_2020 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = quasipoisson(link=log))
+summary(minn_violent20_quasi)
+confint(minn_violent20_quasi)
+
+minn_violent22_quasi <- glm(Violent_2022 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = quasipoisson(link=log))
+summary(minn_violent22_quasi)
 ```
 
+### SPATIAL POISSON MODEL
 
-#### Check residuals for spatial autocorrelation
+Prepare data
 
 ```{r}
-Rook <- poly2nb(min, queen = FALSE)
-min$residuals <- resid(minn_violent20)
+violent2020 <- tract_aggregated %>%
+  st_drop_geometry() %>%
+  filter(year == 2020) %>%
+  rename("Violent_2020" = "Violent") %>%
+  dplyr::select(Violent_2020)
+
+theft2020 <- tract_aggregated %>%
+  st_drop_geometry() %>%
+  filter(year == 2020) %>%
+  rename("Theft_2020" = "Theft") %>%
+  dplyr::select(Theft_2020)
+
+min <- tract_aggregated %>%
+  filter(year == 2010) %>%
+  rename("Violent_2010" = "Violent", 
+         "Theft_2010" = "Theft") %>%
+  cbind(violent2020, theft2020)
+
+min$canGent_gentrified <- relevel(min$canGent_gentrified, ref = "Could, but didn't gentrify")
+
+violent2022 <- tract_aggregated %>%
+  st_drop_geometry() %>%
+  filter(year == 2022) %>%
+  rename("Violent_2022" = "Violent") %>%
+  dplyr::select(Violent_2022)
+
+theft2022 <- tract_aggregated %>%
+  st_drop_geometry() %>%
+  filter(year == 2022) %>%
+  rename("Theft_2022" = "Theft") %>%
+  dplyr::select(Theft_2022)
+
+min2022 <- tract_aggregated %>%
+  filter(year == 2010) %>%
+  rename("Violent_2010" = "Violent", 
+         "Theft_2010" = "Theft") %>%
+  cbind(violent2022, theft2022)
+
+min2022$canGent_gentrified <- relevel(min2022$canGent_gentrified, ref = "Could, but didn't gentrify")
+```
+
+Check original model for autocorrelation
+
+```{r}
+#check ORIGINAL residuals for autocorrelation
+Queen <- poly2nb(min, queen=TRUE)
+
+min$residualsOriginal <- resid(minn_violent20)
 min %>%
   ggplot()+
-  geom_sf(aes(fill = residuals))+
+  geom_sf(aes(fill = residualsOriginal))+
+  scale_fill_gradient2(mid = "white", high = "red", low = "blue")+
+  theme_classic()+
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.line = element_blank(), 
+        plot.title = element_text(family = "mono", size = 10, hjust=0.5), 
+        legend.text = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono", size=9))+
+  labs(title = "Poisson", fill = "Residual")
+
+spdep::moran.test(min$residualsOriginal, nb2listw(Queen, style = "B"), randomisation = FALSE, alternative = "two.sided")
+```
+
+Fit the spatial model
+
+```{r}
+W <- nb2mat(Queen, style = "B", zero.policy = TRUE)
+Z <- matrix(0.01, ncol = 115, nrow = 115) - diag(.01, ncol = 115, nrow = 115)
+
+minn_violent20_spatial <- S.CARdissimilarity(formula = Violent_2020 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)), data = min, family = "poisson", W=W, Z=list(Z=Z), W.binary =TRUE, burnin=30000, n.sample = 100000, thin=20)
+minn_violent20_spatial
+
+minn_violent22_spatial <- S.CARdissimilarity(formula = Violent_2022 ~ canGent_gentrified + Violent_2010 + offset(log(population_2020)), data = min2022, family = "poisson", W=W, Z=list(Z=Z), W.binary =TRUE, burnin=30000, n.sample = 100000, thin=20)
+minn_violent22_spatial
+```
+
+Check residuals of spatial model for autocorrelation and plot
+
+```{r}
+min$spatial_violent_resid <- resid(minn_violent20_spatial, type = "response")
+spdep::moran.test(min$spatial_violent_resid, nb2listw(Queen, style = "B"), alternative = "two.sided")
+
+min %>%
+  ggplot()+
+  geom_sf(aes(fill = spatial_violent_resid))+
   scale_fill_gradient2(mid = "white", high = "red", low = "blue")+
   theme_classic()+
   theme(axis.text = element_blank(), 
         axis.ticks = element_blank(), 
         axis.line = element_blank(), 
         plot.title.position = "plot", 
-        plot.title = element_text(family = "mono"), 
+        plot.title = element_text(family = "mono", size=10, hjust=0.5), 
         legend.text = element_text(family = "mono"), 
-        legend.title = element_text(family = "mono"))+
-  labs(title = "Poisson Residuals: Minneapolis Violent Crime", fill = "Residual")
-
-spdep::moran.test(min$residuals, nb2listw(Rook, style = "B"), randomisation = FALSE, alternative = "two.sided")
+        legend.title = element_text(family = "mono", size=9))+
+  labs(title = "Spatial Poisson", fill = "Residual")
 ```
 
+Create table
 
-### Theft in Minneapolis 
+```{r}
+library(stargazer)
+stargazer(minn_violent20, minn_violent20_quasi, minn_violent19, title="Table 1: Minneapolis Overall Crime Models", type="latex", align=TRUE, dep.var.labels = "2020 Violent Crime Count", covariate.labels=c("Cannot Gentrify","Gentrified", "2010 Crime Rate"), column.labels = c("Poisson", "Quasi-Poisson"), no.space=TRUE, report=("vc*p"), column.sep.width = '1pt')
+```
+
+## Theft in Minneapolis 
+
+### ORIGINAL 
 
 ```{r}
 minn_theft19 <- glm(Theft_2019 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
     data = crimes_wide_minn, family = poisson(link=log))
 summary(minn_theft19)
 
+minn_theft20 <- glm(Theft_2020 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = poisson(link=log))
+summary(minn_theft20)
+confint(minn_theft20)
+
 minn_theft22 <- glm(Theft_2022 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
     data = crimes_wide_minn, family = poisson(link=log))
 summary(minn_theft22)
 ```
 
-### Theft in Minneapolis without Autotheft
+### QUASI-POISSON 
+
+```{r}
+minn_theft19_quasi <- glm(Theft_2019 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = quasipoisson(link=log))
+summary(minn_theft19_quasi)
+
+minn_theft20_quasi <- glm(Theft_2020 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = quasipoisson(link=log))
+summary(minn_theft20_quasi)
+confint(minn_theft20_quasi)
+
+minn_theft22_quasi <- glm(Theft_2022 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
+    data = crimes_wide_minn, family = quasipoisson(link=log))
+summary(minn_theft22_quasi)
+```
+
+### SPATIAL
+
+Check original model for autocorrelation
+
+```{r}
+#check original for spatial autocorrelation
+min$residualsOriginal_theft <- resid(minn_theft20)
+min %>%
+  ggplot()+
+  geom_sf(aes(fill = residualsOriginal_theft))+
+  scale_fill_gradient2(mid = "white", high = "red", low = "blue")+
+  theme_classic()+
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.line = element_blank(), 
+        plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", size = 10, hjust=0.5), 
+        legend.text = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono", size=9))+
+  labs(title = "Poisson", fill = "Residual")
+
+spdep::moran.test(min$residualsOriginal_theft, nb2listw(Queen, style = "B"), randomisation = FALSE, alternative = "two.sided")
+```
+
+Fit the spatial model
+
+```{r}
+minn_theft20_spatial <- S.CARdissimilarity(formula = Theft_2020 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)), data = min, family = "poisson", W=W, Z=list(Z=Z), W.binary =TRUE, burnin=30000, n.sample = 100000, thin=20)
+minn_theft20_spatial
+
+minn_theft22_spatial <- S.CARdissimilarity(formula = Theft_2022 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)), data = min2022, family = "poisson", W=W, Z=list(Z=Z), W.binary =TRUE, burnin=30000, n.sample = 100000, thin=20)
+minn_theft22_spatial
+```
+
+Check residuals of spatial model for autocorrelation and plot
+
+```{r}
+min$spatial_theft_resid <- resid(minn_theft20_spatial, type = "response")
+spdep::moran.test(min$spatial_theft_resid, nb2listw(Queen, style = "B"), alternative = "two.sided")
+
+min %>%
+  ggplot()+
+  geom_sf(aes(fill = spatial_theft_resid))+
+  scale_fill_gradient2(mid = "white", high = "red", low = "blue")+
+  theme_classic()+
+  theme(axis.text = element_blank(), 
+        axis.ticks = element_blank(), 
+        axis.line = element_blank(), 
+        plot.title.position = "plot", 
+        plot.title = element_text(family = "mono", hjust=0.5, size=10), 
+        legend.text = element_text(family = "mono"), 
+        legend.title = element_text(family = "mono", size=9))+
+  labs(title = "Spatial", fill = "Residual")
+```
+
+
+## Theft in Minneapolis without Autotheft
 
 ```{r}
 minn_theft19_na <- glm(Theft_2019 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)),
@@ -143,6 +318,27 @@ minn_theft22_na <- glm(Theft_2022 ~ canGent_gentrified + Theft_2010 + offset(log
     data = crimes_wide_no_auto, family = poisson(link=log))
 summary(minn_theft22_na)
 ```
+
+Spatial
+
+```{r}
+theft2020_noauto <- tract_aggregated_no_auto %>%
+  st_drop_geometry() %>%
+  filter(year == 2020) %>%
+  rename("Theft_2020" = "Theft") %>%
+  dplyr::select(Theft_2020)
+
+min2020_noauto <- tract_aggregated_no_auto %>%
+  filter(year == 2010) %>%
+  rename("Theft_2010" = "Theft") %>%
+  cbind(theft2020_noauto)
+
+min2020_noauto$canGent_gentrified <- relevel(min2020_noauto$canGent_gentrified, ref = "Could, but didn't gentrify")
+
+minn_noauto_spatial <- S.CARdissimilarity(formula = Theft_2020 ~ canGent_gentrified + Theft_2010 + offset(log(population_2020)), data = min2020_noauto, family = "poisson", W=W, Z=list(Z=Z), W.binary =TRUE, burnin=30000, n.sample = 100000, thin=20)
+minn_noauto_spatial
+```
+
 
 ## Saint Paul Models
 
@@ -178,8 +374,3 @@ sp_theft22 <- glm(Theft_2022 ~ canGent_gentrified + Theft_2015 + offset(log(popu
 summary(sp_theft22)
 ```
 
-
-```{r}
-library(stargazer)
-stargazer(minn1, minn2, minn3, minn4, title="Table 1: Minneapolis Overall Crime Models", type="latex", align=TRUE, dep.var.labels = "2019 crime rate", covariate.labels=c("Cannot Gentrify","Gentrified", "2010-2011 Crime Rate","2010 Population"), column.labels = c("Combined", "Freeman", "Ding", "PEW"), no.space=TRUE, report=("vc*p"))
-```
