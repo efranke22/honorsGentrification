@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(tidygeocoder)
 saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report_2023.csv")
 ```
 
@@ -31,10 +32,11 @@ Count number of crimes occurring at an intersection: 18,894.
 
 ```{r}
 saintpaulcrime %>%
-  filter(str_detect(BLOCK, " & ")| str_detect(BLOCK, " AND "))
+  filter(str_detect(BLOCK, " & ")| str_detect(BLOCK, " AND ")) %>%
+  count()
 ```
 
-Remainder of crimes
+Remainder of crimes (166,521)
 
 ```{r}
 sp <- saintpaulcrime %>%
@@ -113,9 +115,38 @@ blocksLatLng <- sp %>%
 save(blocksLatLng, file = "Data/CrimeCleaned/blocksLatLng.RData")
 ```
 
-Gather intersections
+Realized PA is causing issues, rerun through geocoder
 
 ```{r}
-
+load("Data/CrimeCleaned/blocksLatLng.RData")
 ```
+
+
+```{r}
+blocksLatLng %>%
+  filter(is.na(latitude)) %>%
+  filter(str_detect(address, " PA ")) %>%
+  mutate(address = str_replace(BLOCK, " PA", " PKWY")) %>%
+  tidygeocoder::geocode(address, method = 'osm', lat = latitude, long = longitude)
+
+save(blockLatLngPA, file = "Data/CrimeCleaned/blocksLatLngPA.RData")
+```
+
+
+Gather intersections. We are able to get 8,165 out of 18,894 (43.2%)
+
+```{r}
+intersections<- read_csv("Data/Crime/intersections_RamseyCo_geocoded2.csv") %>%
+  filter(Score > 0) %>%
+  select(USER_combined, X, Y)
+intersections$USER_combined <- sapply(sapply(strsplit(intersections$USER_combined, split = ' '), function(x) x[1:length(x)-1]), paste, collapse = ' ')
+
+saintpaulcrime %>%
+  filter(str_detect(BLOCK, " AND ")|str_detect(BLOCK, " & ")) %>%
+  mutate(BLOCK = str_replace(BLOCK, " AND ", " & ")) %>%
+  left_join(intersections, by = c("BLOCK" = "USER_combined")) %>%
+  filter(!is.na(X))
+```
+
+
 
