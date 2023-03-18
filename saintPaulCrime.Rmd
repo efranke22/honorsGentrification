@@ -126,7 +126,8 @@ load("Data/CrimeCleaned/blocksLatLng.RData")
 blocksLatLng %>%
   filter(is.na(latitude)) %>%
   filter(str_detect(address, " PA ")) %>%
-  mutate(address = str_replace(BLOCK, " PA", " PKWY")) %>%
+  mutate(address = str_replace(address, " PA ", " PKWY ")) %>%
+  select(-latitude, -longitude) %>%
   tidygeocoder::geocode(address, method = 'osm', lat = latitude, long = longitude)
 
 save(blockLatLngPA, file = "Data/CrimeCleaned/blocksLatLngPA.RData")
