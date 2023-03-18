@@ -265,6 +265,56 @@ directionELL <- directionE %>%
 save(directionELL, file = "Data/CrimeCleaned/directionELL.RData")
 ```
 
+```{r}
+load("Data/CrimeCleaned/directionELL.RData")
+directionELL <- directionELL %>%
+  select(-latitude...18, -longitude...19) %>%
+  rename("latitude" = "latitude...20", 
+         "longitude" = "longitude...21")
+
+cleanDirection <- directionELL %>%
+  filter(!is.na(latitude))
+
+cleaned <- cleaned %>%
+  rbind(cleanDirection)
+missing <- missing %>%
+  filter(!(CASE_NUMBER %in% cleanDirection$CASE_NUMBER))
+```
+
+```{r}
+directionW <- missing %>%
+  filter(!str_detect(address, " W, Saint Paul, MN"), !str_detect(address, " E, Saint Paul, MN"), !str_detect(address, " N, Saint Paul, MN"), !str_detect(address, " S, Saint Paul, MN")) %>%
+  mutate(street_address = word(address, 1), 
+         address = paste(street_address, "W", word(address, 2, -1)))
+
+directionWLL <- directionW %>%
+  geocode(address, method = "osm", lat = latitude, long = longitude)
+save(directionWLL, file = "Data/CrimeCleaned/directionWLL.RData")
+```
+
+```{r}
+load("Data/CrimeCleaned/directionWLL.RData")
+directionWLL <- directionWLL %>%
+  select(-latitude...18, -longitude...19) %>%
+  rename("latitude" = "latitude...20", 
+         "longitude" = "longitude...21")
+
+cleanDirectionW <- directionWLL %>%
+  filter(!is.na(latitude))
+
+cleaned <- cleaned %>%
+  rbind(cleanDirectionW)
+missing <- missing %>%
+  filter(!(CASE_NUMBER %in% cleanDirectionW$CASE_NUMBER))
+```
+
+```{r}
+address = data.frame(address = c("870 W 7th ST, Saint Paul, MN"))
+address %>%
+  geocode(address, method = "osm")
+```
+
+
 The remaining addresses make me sad and I think at this point it's time to give up or I'll be here forever.
 
 Gather intersections. We are able to get 8,165 out of 18,894 (43.2%)
