@@ -123,7 +123,7 @@ load("Data/CrimeCleaned/blocksLatLng.RData")
 
 
 ```{r}
-blocksLatLng %>%
+blocksLatLngPA <- blocksLatLng %>%
   filter(is.na(latitude)) %>%
   filter(str_detect(address, " PA ")) %>%
   mutate(address = str_replace(address, " PA ", " PKWY ")) %>%
