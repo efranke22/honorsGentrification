@@ -15,7 +15,9 @@ library(tidygeocoder)
 saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report_2023.csv")
 ```
 
-Get types of crime of interest: have 185,415 observations from 2015-2022.
+This is the 6th file in my data cleaning process and works on converting the Saint Paul data to coordinates. 
+
+First, get types of crime of interest: there are 185,415 observations from 2015-2022.
 
 ```{r}
 saintpaulcrime <- saintpaulcrime %>%
@@ -28,6 +30,20 @@ saintpaulcrime <- saintpaulcrime %>%
   filter(OffenseCat != "random")
 ```
 
+We got rid of the following types of offenses
+
+```{r}
+read_csv("Data/Crime/Crime_Incident_Report_2023.csv") %>%
+  mutate(year = as.numeric(substr(DATE, 1, 4))) %>%
+  filter(year != 2014, year!=2023) %>%
+  mutate(OffenseCat = case_when(INCIDENT %in% c("Theft", "Burglary", "Vandalism", "Narcotics", "Criminal Damage", "Graffiti", "THEFT") ~ "Theft", 
+                                INCIDENT == "Auto Theft" ~ "Auto Theft",
+                                INCIDENT %in% c("Simple Asasult Dom.", "Robbery", "Agg. Assault", "Agg. Assault Dom.", "Rape", "Arson", "Simple Assault Dom.", "Simple Assault Dom", "Homicide", "Agg. Assault Dom") ~ "Violent", 
+                                TRUE ~ "random")) %>%
+  filter(OffenseCat == "random") %>%
+  count(INCIDENT)
+```
+
 Count number of crimes occurring at an intersection: 18,894.
 
 ```{r}
@@ -36,7 +52,7 @@ saintpaulcrime %>%
   count()
 ```
 
-Remainder of crimes (166,521)
+Remainder of crimes (166,521). Filter out intersections, replace X in street address with 0. Fix multiple word streets. 
 
 ```{r}
 sp <- saintpaulcrime %>%
@@ -105,9 +121,9 @@ sp <- sp %>%
   mutate(address = paste(street_address, BLOCK))
 ```
 
-Run through the geocoder!! 
+Run this cleaned set of addresses through the geocoder. We get 124,140 crimes. Thus 42,381 still are missing coordinates. 
 
-```{r}
+```{r, eval=FALSE}
 blocksLatLng <- sp %>%
   mutate(address = paste0(address, ", Saint Paul, MN")) %>%
   tidygeocoder::geocode(address, method = 'osm', lat = latitude, long = longitude)
@@ -115,14 +131,17 @@ blocksLatLng <- sp %>%
 save(blocksLatLng, file = "Data/CrimeCleaned/blocksLatLng.RData")
 ```
 
-Realized PA is causing issues, rerun through geocoder
-
 ```{r}
 load("Data/CrimeCleaned/blocksLatLng.RData")
+missing <- blocksLatLng %>%
+  filter(is.na(latitude))
+cleaned <- blocksLatLng %>%
+  filter(!is.na(latitude))
 ```
 
+I realized that the initial issue in the data was PA, not PK. Run these through the geocoder. This gets us another 1,391 addresses.
 
-```{r}
+```{r, eval=FALSE}
 blocksLatLngPA <- blocksLatLng %>%
   filter(is.na(latitude)) %>%
   filter(str_detect(address, " PA ")) %>%
@@ -131,6 +150,42 @@ blocksLatLngPA <- blocksLatLng %>%
   tidygeocoder::geocode(address, method = 'osm', lat = latitude, long = longitude)
 
 save(blockLatLngPA, file = "Data/CrimeCleaned/blocksLatLngPA.RData")
+```
+
+```{r}
+load("Data/CrimeCleaned/blocksLatLngPA.RData")
+cleanPA <- blocksLatLngPA %>%
+  filter(!is.na(latitude))
+missingPA <- blocksLatLngPA %>%
+  filter(is.na(latitude))
+
+cleaned <- cleaned %>%
+  rbind(cleanPA)
+missing <- missing %>%
+  filter(!(CASE_NUMBER %in% cleanPA$CASE_NUMBER))
+```
+
+What else is going wrong with our missing addresses?
+
+```{r}
+missing
+```
+
+For some of the addresses, it requires the direction (N, W, E, S) to be before the street name. 
+
+```{r}
+rearranged <- missing %>%
+  filter(str_detect(address, "E, Saint Paul, MN")| str_detect(address, "E, Saint Paul, MN")| str_detect(address, "N, Saint Paul, MN")| str_detect(address, "S, Saint Paul, MN")) %>%
+  select(-latitude, -longitude) %>%
+  mutate(number = word(address, 1), 
+         direction = word(address, -4),
+         direction = str_replace(direction, ",", ""), 
+         address2 = paste0(number, " ", direction, " ", word(address, 2, 3), ", ", "Saint Paul, MN")) %>%
+  mutate(address2 = str_replace(address2, "MISSISSIPPI RIVER", " MISSISSIPPI RIVER BLVD"))
+
+rearrangedLatLng <- rearranged %>%
+  geocode(address2, method = "osm", lat = latitude, long = longitude)
+save(rearrangedLatLng, file = "Data/CrimeCleaned/rearrangedLatLng.RData")
 ```
 
 
