@@ -235,6 +235,11 @@ save(weirdLatLngAVE, file = "Data/CrimeCleaned/weirdLatLngAVE.RData")
 ```{r}
 load("Data/CrimeCleaned/weirdLatLngAVE.RData")
 
+weirdLatLngAVE <- weirdLatLngAVE %>%
+  select(-latitude...18, -longitude...19) %>%
+  rename("latitude" = "latitude...20", 
+         "longitude" = "longitude...21")
+
 cleanAVE <- weirdLatLngAVE %>%
   filter(!is.na(latitude))
 missingAVE <- weirdLatLngAVEg %>%
@@ -250,10 +255,14 @@ missing <- missing %>%
 Something I noticed is that some streets don't have directions. For example, "1810 E MECHANIC AV, Saint Paul, MN" works but the original "1810 MECHANIC AV, Saint Paul, MN" does not. We don't know what direction the street should have can try I guess. 
 
 ```{r}
-missing %>%
+directionE <- missing %>%
   filter(!str_detect(address, " W, Saint Paul, MN"), !str_detect(address, " E, Saint Paul, MN"), !str_detect(address, " N, Saint Paul, MN"), !str_detect(address, " S, Saint Paul, MN")) %>%
   mutate(street_address = word(address, 1), 
          address = paste(street_address, "E", word(address, 2, -1)))
+
+directionELL <- directionE %>%
+  geocode(address, method = "osm", lat = latitude, long = longitude)
+save(directionELL, file = "Data/CrimeCleaned/directionELL.RData")
 ```
 
 The remaining addresses make me sad and I think at this point it's time to give up or I'll be here forever.
