@@ -38,7 +38,7 @@ crimes_wide_no_auto$canGent_gentrified <- relevel(crimes_wide_no_auto$canGent_ge
 
 crimes_wide_sp <- tract_aggregated_sp %>%
   st_drop_geometry() %>%
-  pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = c(Theft, Violent, violent_per_1000, theft_per_1000))
+  pivot_wider(id_cols = c(tractmod:canGent_gentrified),names_from = year, values_from = c(Theft, Violent))
 crimes_wide_sp$canGent_gentrified <- relevel(crimes_wide_sp$canGent_gentrified, ref = "Could, but didn't gentrify")
 ```
 
@@ -345,32 +345,58 @@ minn_noauto_spatial
 ### Violent Crimes 
 
 ```{r}
-sp_violent19 <- glm(Violent_2019 ~ canGent_gentrified + Violent_2015 + offset(log(population_2020)),
-    data = crimes_wide_sp, family = poisson(link=log))
-summary(sp_violent19)
-
 sp_violent20 <- glm(Violent_2020 ~ canGent_gentrified + Violent_2015 + offset(log(population_2020)),
     data = crimes_wide_sp, family = poisson(link=log))
 summary(sp_violent20)
+confint(sp_violent20)
 
-sp_violent22 <- glm(Violent_2022 ~ canGent_gentrified + Violent_2015 + offset(log(population_2020)),
-    data = crimes_wide_sp, family = poisson(link=log))
-summary(sp_violent22)
+sp_violent20_quasi <- glm(Violent_2020 ~ canGent_gentrified + Violent_2015 + offset(log(population_2020)),
+    data = crimes_wide_sp, family = quasipoisson(link=log))
+summary(sp_violent20_quasi)
+confint(sp_violent20_quasi)
 ```
+
+```{r}
+violent2020 <- tract_aggregated_sp %>%
+  st_drop_geometry() %>%
+  filter(year == 2020) %>%
+  rename("Violent_2020" = "Violent") %>%
+  dplyr::select(Violent_2020)
+
+theft2020 <- tract_aggregated_sp %>%
+  st_drop_geometry() %>%
+  filter(year == 2020) %>%
+  rename("Theft_2020" = "Theft") %>%
+  dplyr::select(Theft_2020)
+
+min <- tract_aggregated_sp %>%
+  filter(year == 2015) %>%
+  rename("Violent_2015" = "Violent", 
+         "Theft_2015" = "Theft") %>%
+  cbind(violent2020, theft2020)
+
+min$canGent_gentrified <- relevel(min$canGent_gentrified, ref = "Could, but didn't gentrify")
+
+library(CARBayes)
+W <- nb2mat(Queen, style = "B", zero.policy = TRUE)
+Z <- matrix(0.01, ncol = 82, nrow = 82) - diag(.01, ncol = 82, nrow = 82)
+sp_violent_spatial <- S.CARdissimilarity(formula = Violent_2020 ~ canGent_gentrified + Violent_2015 + offset(log(population_2020)), data = min, family = "poisson", W=W, Z=list(Z=Z), W.binary =TRUE, burnin=30000, n.sample = 100000, thin=20)
+```
+
 
 ### Theft
 
 ```{r}
-sp_theft19 <- glm(Theft_2019 ~ canGent_gentrified + Theft_2015 + offset(log(population_2020)),
-    data = crimes_wide_sp, family = poisson(link=log))
-summary(sp_theft19)
-
 sp_theft20 <- glm(Theft_2020 ~ canGent_gentrified + Theft_2015 + offset(log(population_2020)),
     data = crimes_wide_sp, family = poisson(link=log))
 summary(sp_theft20)
+confint(sp_theft20)
 
-sp_theft22 <- glm(Theft_2022 ~ canGent_gentrified + Theft_2015 + offset(log(population_2020)),
-    data = crimes_wide_sp, family = poisson(link=log))
-summary(sp_theft22)
+sp_theft20_quasi <- glm(Theft_2020 ~ canGent_gentrified + Theft_2015 + offset(log(population_2020)),
+    data = crimes_wide_sp, family = quasipoisson(link=log))
+summary(sp_theft20_quasi)
+confint(sp_theft20_quasi)
+
+sp_theft_spatial <- S.CARdissimilarity(formula = Theft_2020 ~ canGent_gentrified + Theft_2015 + offset(log(population_2020)), data = min, family = "poisson", W=W, Z=list(Z=Z), W.binary =TRUE, burnin=30000, n.sample = 100000, thin=20)
 ```
 

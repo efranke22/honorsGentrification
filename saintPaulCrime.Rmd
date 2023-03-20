@@ -9,15 +9,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+This is the 6th file in my data cleaning process and works on converting the Saint Paul data to coordinates. 
+
 ```{r}
 library(tidyverse)
 library(tidygeocoder)
+library(sf)
 saintpaulcrime <- read_csv("Data/Crime/Crime_Incident_Report_2023.csv")
+load('Data/tractData/cleaned/gent_clean.RData')
 ```
 
-This is the 6th file in my data cleaning process and works on converting the Saint Paul data to coordinates. 
-
-First, get types of crime of interest: there are 185,415 observations from 2015-2022.
+First, get types of crime of interest: there are 183,203 incidents from 2015-2022. 
 
 ```{r}
 saintpaulcrime <- saintpaulcrime %>%
@@ -28,6 +30,11 @@ saintpaulcrime <- saintpaulcrime %>%
                                 INCIDENT %in% c("Simple Asasult Dom.", "Robbery", "Agg. Assault", "Agg. Assault Dom.", "Rape", "Arson", "Simple Assault Dom.", "Simple Assault Dom", "Homicide", "Agg. Assault Dom") ~ "Violent", 
                                 TRUE ~ "random")) %>%
   filter(OffenseCat != "random")
+
+#total number of incidents 
+saintpaulcrime %>%
+  distinct(CASE_NUMBER) %>%
+  count()
 ```
 
 We got rid of the following types of offenses
@@ -41,18 +48,29 @@ read_csv("Data/Crime/Crime_Incident_Report_2023.csv") %>%
                                 INCIDENT %in% c("Simple Asasult Dom.", "Robbery", "Agg. Assault", "Agg. Assault Dom.", "Rape", "Arson", "Simple Assault Dom.", "Simple Assault Dom", "Homicide", "Agg. Assault Dom") ~ "Violent", 
                                 TRUE ~ "random")) %>%
   filter(OffenseCat == "random") %>%
+  distinct(CASE_NUMBER, .keep_all = TRUE) %>%
   count(INCIDENT)
 ```
 
-Count number of crimes occurring at an intersection: 18,894.
+Count number of crimes occurring at an intersection: 18,662.
 
 ```{r}
 saintpaulcrime %>%
   filter(str_detect(BLOCK, " & ")| str_detect(BLOCK, " AND ")) %>%
+  distinct(CASE_NUMBER, .keep_all = TRUE) %>%
   count()
 ```
 
-Remainder of crimes (166,521). Filter out intersections, replace X in street address with 0. Fix multiple word streets. 
+Number of crimes not at intersections
+
+```{r}
+saintpaulcrime %>%
+  filter(!str_detect(BLOCK, " & "),!str_detect(BLOCK, " AND ")) %>%
+  distinct(CASE_NUMBER, .keep_all = TRUE) %>%
+  count()
+```
+
+Remainder of crimes (164,541). Filter out intersections, replace X in street address with 0. Fix multiple word streets. 
 
 ```{r}
 sp <- saintpaulcrime %>%
@@ -121,7 +139,7 @@ sp <- sp %>%
   mutate(address = paste(street_address, BLOCK))
 ```
 
-Run this cleaned set of addresses through the geocoder. We get 124,140 crimes. Thus 42,381 still are missing coordinates. 
+Run this cleaned set of addresses through the geocoder. We get 122,694  crimes. Thus 41,854 still are missing coordinates. 
 
 ```{r, eval=FALSE}
 blocksLatLng <- sp %>%
@@ -137,9 +155,17 @@ missing <- blocksLatLng %>%
   filter(is.na(latitude))
 cleaned <- blocksLatLng %>%
   filter(!is.na(latitude))
+
+#number missing/recorded
+cleaned %>%
+  distinct(CASE_NUMBER, .keep_all = TRUE) %>%
+  count()
+missing %>%
+  distinct(CASE_NUMBER, .keep_all = TRUE) %>%
+  count()
 ```
 
-I realized that the initial issue in the data was PA, not PK. Run these through the geocoder. This gets us another 1,391 addresses.
+I realized that the initial issue in the data was PA, not PK. Run these through the geocoder. This gets us 1382 crimes. 40,472 are missing.
 
 ```{r, eval=FALSE}
 blocksLatLngPA <- blocksLatLng %>%
@@ -156,18 +182,24 @@ save(blockLatLngPA, file = "Data/CrimeCleaned/blocksLatLngPA.RData")
 load("Data/CrimeCleaned/blocksLatLngPA.RData")
 cleanPA <- blocksLatLngPA %>%
   filter(!is.na(latitude))
-missingPA <- blocksLatLngPA %>%
-  filter(is.na(latitude))
 
 cleaned <- cleaned %>%
   rbind(cleanPA)
 missing <- missing %>%
   filter(!(CASE_NUMBER %in% cleanPA$CASE_NUMBER))
+
+#count distinct clean, missing
+cleanPA %>%
+  distinct(CASE_NUMBER) %>%
+  count()
+missing %>%
+  distinct(CASE_NUMBER) %>%
+  count()
 ```
 
 For some of the addresses, it requires the direction (N, W, E, S) to be before the street name. 
 
-```{r}
+```{r, eval=FALSE}
 rearranged <- missing %>%
   filter(str_detect(address, "E, Saint Paul, MN")| str_detect(address, "E, Saint Paul, MN")| str_detect(address, "N, Saint Paul, MN")| str_detect(address, "S, Saint Paul, MN")) %>%
   select(-latitude, -longitude) %>%
@@ -182,9 +214,9 @@ rearrangedLatLng <- rearranged %>%
 save(rearrangedLatLng, file = "Data/CrimeCleaned/rearrangedLatLng.RData")
 ```
 
-I accidentally did two "E" instead of "W" above, so do the same thing for "W" addresses. Don't judge, it takes a long time to run on the geocoder so I am not gonnna rerun them all when I don't have to.
+I accidentally did two "E" instead of "W" above, so do the same thing for "W" addresses. If you are reading this, don't judge :) It takes a long time to run on the geocoder so I am not gonna rerun them all when I don't have to.
 
-```{r}
+```{r, eval=FALSE}
 rearrangedW <- missing %>%
   filter(str_detect(address, "W, Saint Paul, MN")) %>%
   select(-latitude, -longitude) %>%
@@ -199,7 +231,7 @@ rearrangedLatLngW <- rearrangedW %>%
 save(rearrangedLatLngW, file = "Data/CrimeCleaned/rearrangedLatLngW.RData")
 ```
 
-Rearranging allowed us to bring our total number of missing addresses down to 28,589. We got 12,401 from doing this (pretty good).
+Rearranging allowed us to bring our total number of missing addresses down to 28,233. We got 12,239 through this process.
 
 ```{r}
 load("Data/CrimeCleaned/rearrangedLatLngW.RData")
@@ -210,18 +242,24 @@ rearrangedLatLng <- rbind(rearrangedLatLng, rearrangedLatLngW) %>%
 
 cleanRearranged <- rearrangedLatLng %>%
   filter(!is.na(latitude))
-missingRearranged <- rearrangedLatLng %>%
-  filter(is.na(latitude))
 
 cleaned <- cleaned %>%
   rbind(cleanRearranged)
 missing <- missing %>%
   filter(!(CASE_NUMBER %in% cleanRearranged$CASE_NUMBER))
+
+#count distinct clean, missing
+cleanRearranged %>%
+  distinct(CASE_NUMBER) %>%
+  count()
+missing %>%
+  distinct(CASE_NUMBER) %>%
+  count()
 ```
 
-It looks like sometimes the geocoder prefers "AVE" to "AV". But not always? Very strange in my opinion. Replace this and rerun through geocoder. Also found an error with a particular street so fixing that. 
+It looks like sometimes the geocoder prefers "AVE" to "AV". But not always? Very strange in my opinion. Replace this and rerun through geocoder. Also found an error with a particular street so fixing that. Gets us 1084. Missing 27, 149. 
 
-```{r}
+```{r, eval=FALSE}
 weirdAVE <- missing %>%
   filter(str_detect(address, " AV,")| str_detect(address, "ST ANTHONY")) %>%
   mutate(address = str_replace(address, " AV,", " AVE,"), 
@@ -242,19 +280,25 @@ weirdLatLngAVE <- weirdLatLngAVE %>%
 
 cleanAVE <- weirdLatLngAVE %>%
   filter(!is.na(latitude))
-missingAVE <- weirdLatLngAVEg %>%
-  filter(is.na(latitude))
 
 cleaned <- cleaned %>%
   rbind(cleanAVE)
 missing <- missing %>%
   filter(!(CASE_NUMBER %in% cleanAVE$CASE_NUMBER)) %>%
   mutate(address = str_replace(address, " PA,", " PKWY,")) #add in this
+
+#count clean, missing
+cleanAVE %>%
+  distinct(CASE_NUMBER) %>%
+  count()
+missing %>%
+  distinct(CASE_NUMBER) %>%
+  count()
 ```
 
-Something I noticed is that some streets don't have directions. For example, "1810 E MECHANIC AV, Saint Paul, MN" works but the original "1810 MECHANIC AV, Saint Paul, MN" does not. We don't know what direction the street should have can try I guess. 
+Something I noticed is that some streets don't have directions. For example, "1810 E MECHANIC AV, Saint Paul, MN" works but the original "1810 MECHANIC AV, Saint Paul, MN" does not. We don't know what direction the street should have can try I guess. Doing this brings our total number of addresses with coordinates to 148536. We have 16010 missing.
 
-```{r}
+```{r, eval=FALSE}
 directionE <- missing %>%
   filter(!str_detect(address, " W, Saint Paul, MN"), !str_detect(address, " E, Saint Paul, MN"), !str_detect(address, " N, Saint Paul, MN"), !str_detect(address, " S, Saint Paul, MN")) %>%
   mutate(street_address = word(address, 1), 
@@ -281,7 +325,7 @@ missing <- missing %>%
   filter(!(CASE_NUMBER %in% cleanDirection$CASE_NUMBER))
 ```
 
-```{r}
+```{r, eval=FALSE}
 directionW <- missing %>%
   filter(!str_detect(address, " W, Saint Paul, MN"), !str_detect(address, " E, Saint Paul, MN"), !str_detect(address, " N, Saint Paul, MN"), !str_detect(address, " S, Saint Paul, MN")) %>%
   mutate(street_address = word(address, 1), 
@@ -308,14 +352,107 @@ missing <- missing %>%
   filter(!(CASE_NUMBER %in% cleanDirectionW$CASE_NUMBER))
 ```
 
-```{r}
-address = data.frame(address = c("870 W 7th ST, Saint Paul, MN"))
-address %>%
-  geocode(address, method = "osm")
+```{r, eval=FALSE}
+directionN <- missing %>%
+  filter(!str_detect(address, " W, Saint Paul, MN"), !str_detect(address, " E, Saint Paul, MN"), !str_detect(address, " N, Saint Paul, MN"), !str_detect(address, " S, Saint Paul, MN")) %>%
+  mutate(street_address = word(address, 1), 
+         address = paste(street_address, "N", word(address, 2, -1)))
+
+directionNLL <- directionN %>%
+  geocode(address, method = "osm", lat = latitude, long = longitude)
+save(directionNLL, file = "Data/CrimeCleaned/directionNLL.RData")
 ```
 
+```{r}
+load("Data/CrimeCleaned/directionNLL.RData")
+directionNLL <- directionNLL %>%
+  select(-latitude...18, -longitude...19) %>%
+  rename("latitude" = "latitude...20", 
+         "longitude" = "longitude...21")
 
-The remaining addresses make me sad and I think at this point it's time to give up or I'll be here forever.
+cleanDirectionN <- directionNLL %>%
+  filter(!is.na(latitude))
+
+cleaned <- cleaned %>%
+  rbind(cleanDirectionN)
+missing <- missing %>%
+  filter(!(CASE_NUMBER %in% cleanDirectionN$CASE_NUMBER))
+```
+
+```{r, eval=FALSE}
+directionS <- missing %>%
+  filter(!str_detect(address, " W, Saint Paul, MN"), !str_detect(address, " E, Saint Paul, MN"), !str_detect(address, " N, Saint Paul, MN"), !str_detect(address, " S, Saint Paul, MN")) %>%
+  mutate(street_address = word(address, 1), 
+         address = paste(street_address, "S", word(address, 2, -1)))
+
+directionSLL <- directionS %>%
+  geocode(address, method = "osm", lat = latitude, long = longitude)
+save(directionSLL, file = "Data/CrimeCleaned/directionSLL.RData")
+```
+
+```{r}
+load("Data/CrimeCleaned/directionSLL.RData")
+directionSLL <- directionSLL %>%
+  select(-latitude...18, -longitude...19) %>%
+  rename("latitude" = "latitude...20", 
+         "longitude" = "longitude...21")
+
+cleanDirectionS <- directionSLL %>%
+  filter(!is.na(latitude))
+
+cleaned <- cleaned %>%
+  rbind(cleanDirectionS)
+missing <- missing %>%
+  filter(!(CASE_NUMBER %in% cleanDirectionS$CASE_NUMBER))
+
+#count missing/clean
+cleaned %>%
+  distinct(CASE_NUMBER) %>%
+  count()
+missing %>%
+  distinct(CASE_NUMBER) %>%
+  count()
+```
+
+When riding the bike in the LC I saw on the TV an address along the lines of "150 W 7th St, Saint Paul". The downtown streets are listed like "150 7 ST W". We can rearrange this and see how many we can get. 
+
+```{r, eval=FALSE}
+downtown <- missing %>%
+  filter(str_detect(address, "E, Saint Paul, MN")| str_detect(address, "E, Saint Paul, MN")| str_detect(address, "N, Saint Paul, MN")| str_detect(address, "S, Saint Paul, MN")) %>%
+  select(-latitude, -longitude) %>%
+  mutate(number = word(address, 1), 
+         direction = word(address, -4),
+         street = word(address, 2),
+         street = paste0(street, "th"),
+         direction = str_replace(direction, ",", ""), 
+         address2 = paste0(number, " ", direction, " ", street, " ", word(address, 3), ", ", "Saint Paul, MN"))
+
+downtownLL <- downtown %>%
+  geocode(address2, method = "osm", lat = latitude, long = longitude)
+save(downtownLL, file = "Data/CrimeCleaned/downtownLL.RData")
+```
+
+```{r}
+load("Data/CrimeCleaned/downtownLL.RData")
+
+cleanDowntown <- downtownLL %>%
+  filter(!is.na(latitude)) %>%
+  select(-address2, -number, -direction, -street)
+
+cleaned <- cleaned %>%
+  rbind(cleanDowntown)
+missing <- missing %>%
+  filter(!(CASE_NUMBER %in% cleanDowntown$CASE_NUMBER))
+
+cleaned %>%
+  distinct(CASE_NUMBER) %>%
+  count()
+missing %>%
+  distinct(CASE_NUMBER) %>%
+  count()
+```
+
+The remaining addresses make me sad and I think at this point it's time to give up or I'll be here forever. We have 154269 cleaned cases. 10,276 are missing.
 
 Gather intersections. We are able to get 8,165 out of 18,894 (43.2%)
 
@@ -325,12 +462,58 @@ intersections<- read_csv("Data/Crime/intersections_RamseyCo_geocoded2.csv") %>%
   select(USER_combined, X, Y)
 intersections$USER_combined <- sapply(sapply(strsplit(intersections$USER_combined, split = ' '), function(x) x[1:length(x)-1]), paste, collapse = ' ')
 
-saintpaulcrime %>%
+intersectionsClean <- saintpaulcrime %>%
   filter(str_detect(BLOCK, " AND ")|str_detect(BLOCK, " & ")) %>%
   mutate(BLOCK = str_replace(BLOCK, " AND ", " & ")) %>%
   left_join(intersections, by = c("BLOCK" = "USER_combined")) %>%
-  filter(!is.na(X))
+  filter(!is.na(X)) %>%
+  distinct(CASE_NUMBER, .keep_all = TRUE) %>%
+  rename("latitude" = "Y", 
+         "longitude" = "X") %>%
+  select(INCIDENT, BLOCK, year, OffenseCat, longitude, latitude)
 ```
 
+# Combine intersections and crimes
 
+We have 7,601 intersections out of 18,662 (40.73%). We have 154,269 addresses out of 164,544 (93.76%). In total we have 161870/183206, or 88.35%. 
 
+```{r}
+cleanedFinal <- cleaned %>%
+  distinct(CASE_NUMBER, .keep_all = TRUE) %>%
+  select(-street_address, -BLOCK) %>%
+  rename("BLOCK" = "address") %>%
+  select(INCIDENT, BLOCK, year, OffenseCat, longitude, latitude)
+totalSP <- rbind(cleanedFinal, intersectionsClean)
+```
+
+Make the crime coordinates sf geometry points of the right coordinate system.
+
+```{r}
+sp_sf <- totalSP %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = "NAD83")
+```
+
+Aggregate the points by census tract. 
+
+```{r}
+tract_points_sp <- st_join(sp_sf, left = FALSE, gent_clean["tractmod"]) 
+plot(tract_points_sp$geometry, pch=21, cex=0.7, col="purple", bg="gray80")
+plot(gent_clean$geometry, border="gray20", col=NA, add=T)
+
+crimes_per_tract_no_geo <- tract_points_sp %>%
+  mutate(OffenseCat = case_when(OffenseCat == "Auto Theft" ~ "Theft", 
+         TRUE ~ OffenseCat)) %>%
+  st_drop_geometry() %>%
+  group_by(tractmod, year, OffenseCat, .drop=FALSE) %>%
+  count() %>%
+  pivot_wider(names_from = year, values_from = n) %>%
+  replace(is.na(.),0) %>%
+  pivot_longer(cols = c(`2015`:`2022`),names_to = "year", values_to = "n") %>%
+  pivot_wider(names_from = OffenseCat, values_from = n)
+
+tract_aggregated_sp <- gent_clean %>%
+  right_join(crimes_per_tract_no_geo, by = "tractmod")
+
+save(tract_aggregated_sp, file = 'Data/CrimeCleaned/tract_aggregated_sp.RData')
+save(tract_points_sp, file = "Data/CrimeCleaned/tract_points_sp.RData")
+```

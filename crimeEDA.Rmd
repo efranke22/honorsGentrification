@@ -447,5 +447,90 @@ saintpaulcrime %>%
         axis.text = element_text(family = "mono"))
 ```
 
+```{r}
+tract_aggregated_sp %>%
+  filter(year %in% c(2020)) %>%
+  mutate(violentD= case_when(Violent <=10 ~ "0-10",
+                               Violent >10 & Violent  <=25 ~ "11-25",
+                               Violent >25 & Violent <= 50 ~ "26-50", 
+                               Violent >50 & Violent <= 100 ~ "51-100",
+                               TRUE ~ "101+")) %>%
+  mutate(violentD= fct_relevel(violentD, levels = c("0-10", "11-25", "26-50", "51-100", "101+"))) %>%
+  ggplot()+
+  geom_sf(aes(fill = violentD))+
+  scale_fill_brewer(palette = "Blues")+
+  theme_classic()+
+  theme(axis.line = element_blank(), 
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust=0.5, family = "mono"), 
+        strip.background = element_blank(), 
+        legend.title = element_text(family = "mono"), 
+        legend.text = element_text(family = "mono"), 
+        strip.text = element_text(family = "mono"))+
+  labs(title = "Recorded violent crime counts by census tract in 2020", fill = "Count")
 
+tract_aggregated_sp %>%
+  filter(year %in% c(2020)) %>%
+  mutate(theftD= case_when(Theft <=90 ~ "38-90",
+                               Theft >90 & Theft  <=130 ~ "91-130",
+                               Theft >130 & Theft <= 200 ~ "131-200", 
+                               TRUE ~ "201+")) %>%
+  mutate(theftD= fct_relevel(theftD, levels = c("38-90", "91-130", "131-200", "201+"))) %>%
+  ggplot()+
+  geom_sf(aes(fill = theftD))+
+  scale_fill_brewer(palette = "Blues")+
+  theme_classic()+
+  #annotate("point", x = -93.2277, y = 44.974, colour = "white", size = 1) +
+  theme(axis.line = element_blank(), 
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust=0.5, family = "mono"), 
+        strip.background = element_blank(), 
+        legend.title = element_text(family = "mono"), 
+        legend.text = element_text(family = "mono"), 
+        strip.text = element_text(family = "mono"))+
+  labs(title = "Recorded theft counts by census tract in 2020", fill = "Count", x = "", y="")
+```
+
+```{r}
+tract_aggregated_sp %>%
+  st_drop_geometry() %>%
+  filter(year %in% c(2015, 2020)) %>%
+  dplyr::select(population_2020, population_2010, bachelors_2010, bachelors_2020, medianIncome_2010, medianIncome_2020, medianHomeValue_2020, medianHomeValue_2010, medContractRent_2010, medContractRent_2020, canGent2010, gentrified, Violent, Theft, year) %>%
+  mutate(Gentrification_status = case_when(canGent2010 == "No" ~ "Cannot Gentrify", 
+                                           canGent2010 == "Yes" & gentrified == "0" ~ "Could, but didn't gentrify",
+                                           TRUE ~ "Gentrified")) %>%
+  group_by(Gentrification_status, year) %>%
+  summarize(`2010 Population` = mean(population_2010), 
+            `2020 Population` = mean(population_2020), 
+            `2010 Bachelors %` = weighted.mean(bachelors_2010/population_2010, population_2010),
+            `2020 Bachelors %` = weighted.mean(bachelors_2020/population_2020, population_2020),
+            `2010 Median Income` = weighted.mean(medianIncome_2010, population_2010), 
+            `2020 Median Income` = weighted.mean(medianIncome_2020, population_2020, na.rm=TRUE),
+            `2010 Median Home Value` = weighted.mean(medianHomeValue_2010, population_2010), 
+            `2020 Median Home Value` = weighted.mean(medianHomeValue_2020, population_2020, na.rm=TRUE),
+            `2010 Median Contract Rent` = weighted.mean(medContractRent_2010, population_2010), 
+            `2020 Median Contract Rent` = weighted.mean(medContractRent_2020, population_2020), 
+            `2010 Violent` = weighted.mean(Violent, population_2010), 
+            `2020 Theft` = weighted.mean(Theft, population_2020))
+
+#2015 population 3780, 3746, 2729
+(19.5/3780)*1000
+(23/3883)*1000
+(158.5/3780)*1000
+(198.7/3883)*1000
+(47.3/3746)*1000
+(56.1/3981)*1000
+(260/3746)*1000
+(285/3981)*1000
+(40.7/2729)*1000
+(43.2/2802)*1000
+(352.7/2729)*1000
+(319/2802)*1000
+
+
+summary = data.frame(`Variable` = c("Violent Crimes/1000 residents", "", "Thefts/1000 residents", "", "Population", "", "Bachelor's %", "", "Median Income", "", "Median Home Value", "", "Median Contract Rent", ""), `Cannot gentrify` = c("5.2", "5.9","41.9", "51.2", "3,780", "3,883", "29", "31", "61,379", "77,289", "256,405", "284,649", "748", "1,027"), `Could, but didn't gentrify`= c("12.6", "14.1", "69.4", "71.6", "3,746", "3,981", "11", "13", "34,359", "47,305", "175,305", "172,867", "648", "859"), Gentrified= c("14.9", "15.4", "129.2", "113.8", "2,729", "2,802", "19", "25", "36,934", "55,062", "200,930", "228,746", "635", "905"), check.names = FALSE)
+xtable(summary)
+```
 
