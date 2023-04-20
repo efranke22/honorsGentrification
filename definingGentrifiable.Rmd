@@ -9,8 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This is the 3rd file in my data cleaning and exploration process. \
-Steps in this file: Identify gentrifiable census tracts in 2010. \
+This is the 3rd file in my data cleaning and exploration process. In this file I identify census tracts eligible to undergo gentrification. 
 
 ## Load libraries and data 
 
@@ -24,6 +23,8 @@ library(ggtext)
 library(showtext)
 font_add_google("Roboto Condensed")
 font_add_google("Lora")
+font_add_google("Coming Soon")
+font_add_google("Solway")
 showtext_auto()
 ```
 
@@ -90,18 +91,11 @@ gentrifiable %>%
   ggplot()+
   geom_sf(aes(fill=canGent2010), lwd = 0.4)+
   geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
-  theme_classic()+
   labs(title = "2010 gentrification eligibility in Minneapolis-Saint Paul census tracts", fill = "Eligible to gentrify", x = "", y = "")+
-  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
+  scale_fill_manual(values = c("#898A99", "#C6431F"))+
   theme(axis.line = element_blank(), 
         axis.text = element_blank(), 
-        axis.ticks = element_blank(),
-        legend.title = element_markdown(family = "mono",size=9),
-        legend.text =  element_markdown(family = "mono"),
-        plot.title.position = "plot", 
-        plot.title = element_markdown(family = "mono", size = 10))+
-  scale_fill_manual(values = c("#898A99", "#C6431F"))+
-  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")
+        axis.ticks = element_blank())
 ```
 
 Write the gentrifiable file to the Data folder for future use. 
