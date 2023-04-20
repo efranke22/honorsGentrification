@@ -9,8 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This is my first file in my data cleaning and exploration process. \
-Steps in this file: import data using Tidycensus and choose variables of interest. \
+This is my first file in my data cleaning and exploration process.
+This file covers importing data using the Tidycensus package for variables that may of interest. 
 
 ## Load libraries 
 
