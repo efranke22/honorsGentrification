@@ -9,8 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This is the 2nd file in my data cleaning and exploration process. \
-Steps in this file: Identify and deal with census tracts that changed from 2010 to 2020. 
+This is the 2nd file in my data cleaning and exploration process. In this file, I identify and deal with census tracts that changed borders from 2010 to 2020. 
 
 ```{r}
 library(tidycensus)
