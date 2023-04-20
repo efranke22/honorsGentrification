@@ -73,19 +73,11 @@ gent_clean %>%
   ggplot()+
   geom_sf(aes(fill=canGent_gentrified), lwd = 0.4)+
   geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
-  theme_classic()+
   labs(title = "Minneapolis-Saint Paul 2020 census tract gentrification status", fill = "Status", x = "", y = "")+
-  #annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
+  scale_fill_manual(values = c("#898A99", "#C6431F", "#FFC050"))+
   theme(axis.line = element_blank(), 
         axis.text = element_blank(), 
-        axis.ticks = element_blank(),
-        legend.title = element_markdown(family = "mono", size =9),
-        plot.title.position = "plot",
-        legend.text = element_markdown(family = "mono", size = 8),
-        plot.title = element_markdown(family = "mono", size = 10))+
-  scale_fill_manual(values = c("#898A99", "#C6431F", "#FFC050"))+
-  #annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
-  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
+        axis.ticks = element_blank())
 ```
 
 Understand breakdown of gentrifying census tracts
@@ -98,66 +90,22 @@ gent_clean %>%
   mutate(proportion = n/sum(n))
 ```
 
-Understand census tracts by variables included in gentrification definition.
+Out of curiosity, did census tracts that were inelgible to undergo gentrification meet any of the requirements to gentrify?
 
 ```{r}
-gent_clean %>%
-  mutate(percent_bach = bachelors_2010/population_2010) %>%
-  ggplot()+
-  geom_sf(aes(fill=percent_bach, color = city), lwd = 0.4)+
-  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
-  theme_classic()+
-  scale_color_manual(values = c("goldenrod", "forestgreen"))+
-  labs(title = "MSP census tract gentrification status in 2020", fill = "Gentrifiable", x = "", y = "", color = "City")+
-  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
-  theme(axis.line = element_blank(),
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(), 
-        legend.title = element_markdown(family = "mono"), 
-        plot.title.position = "plot", 
-        plot.title = element_markdown(family = "mono", size = 12))+
-  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
-  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
-
-gent_clean %>%
-  mutate(percent_bach = bachelors_2020/population_2020) %>%
-  ggplot()+
-  geom_sf(aes(fill=percent_bach, color = city), lwd = 0.4)+
-  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
-  theme_classic()+
-  scale_color_manual(values = c("goldenrod", "forestgreen"))+
-  labs(title = "Proportion of residents with a bachelors degree by MSP census tract", fill = "Proportion", x = "", y = "", color = "City")+
-  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
-  theme(axis.line = element_blank(),
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(), 
-        legend.title = element_markdown(family = "mono"), 
-        plot.title.position = "plot", 
-        plot.title = element_markdown(family = "mono", size = 12))+
-  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
-  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
-
-gent_clean %>%
-  mutate(change_bach = bachelors_2020/population_2020 - bachelors_2010/population_2010) %>%
-  ggplot()+
-  geom_sf(aes(fill=change_bach, color = city), lwd = 0.4)+
-  geom_sf(data = roads_sub, fill = "gray",color = "gray", lwd= 0.5)+
-  theme_classic()+
-  scale_color_manual(values = c("goldenrod", "forestgreen"))+
-  labs(title = "Proportion of residents with a bachelors degree by MSP census tract", fill = "Proportion", x = "", y = "", color = "City")+
-  annotate("point", x = -93.1691, y = 44.938, colour = "white", size = 1) +
-  scale_fill_gradient2()+
-  theme(axis.line = element_blank(),
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(), 
-        legend.title = element_markdown(family = "mono"), 
-        plot.title.position = "plot", 
-        plot.title = element_markdown(family = "mono", size = 12))+
-  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 2, color = "white")+
-  guides(color = guide_legend(override.aes = list(size=2,alpha=1)))
+gentrifiable %>%
+  mutate(propbachelors2010 = bachelors_2010/population_2010, 
+         propbachelors2020 = bachelors_2020/population_2020, 
+         change_bachelors = propbachelors2020 - propbachelors2010,
+         percent_rent_increase = (medContractRent_2020 - medContractRent_2010)/(medContractRent_2010),
+         percent_homevalue_increase = (medianHomeValue_2020 - medianHomeValue_2010)/medianHomeValue_2010, 
+         gentrified = as.factor(case_when((canGent2010 == "No" & city == "Minneapolis" & change_bachelors > 0.03941054 & 
+                                       (percent_rent_increase > 0.3259020 | percent_homevalue_increase >0.16874041)) |
+                                      (canGent2010 == "No" & city == "Saint Paul" & change_bachelors > 0.01854539 &
+                                         (percent_rent_increase > 0.3811 | percent_homevalue_increase > 0.05902)) ~ 1, 
+                          TRUE ~ 0))) %>%
+  filter(gentrified == 1)
 ```
-
-
 
 ```{r, eval=FALSE}
 save(gent_clean, file = 'Data/tractData/cleaned/gent_clean.RData')
