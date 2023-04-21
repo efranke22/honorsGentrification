@@ -9,12 +9,13 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This is the 7th file in my honors project and creates Poisson regression models for Minneapolis and Saint Paul crime. \
+In this file I create Poisson regression models for Minneapolis and Saint Paul crime.
 
 ```{r}
 library(tidyverse)
 library(sf)
 library(spdep)
+library(CARBayes)
 ```
 
 # Minneapolis modeling
@@ -52,18 +53,12 @@ crimes_wide_minn %>%
   dplyr::select(tractmod, Violent_2020, Theft_2020) %>%
   rename("Theft" = "Theft_2020", 
          "Violent" = "Violent_2020") %>%
-  pivot_longer(cols = c(Theft, Violent), names_to = "crime_type", values_to = "Count") %>%
+  pivot_longer(cols = c(Violent, Theft), names_to = "crime_type", values_to = "Count") %>%
   ggplot(aes(x=Count))+
   geom_density()+
   facet_wrap(~crime_type, scales = "free")+
-  theme_classic()+
-  theme(strip.background = element_blank(), 
-        strip.text = element_text(family = "mono", face = "bold"),
-        plot.title.position = "plot", 
-        plot.title = element_text(family = "mono", size =10), 
-        axis.text = element_text(family = "mono"),
-        axis.title = element_text(family = "mono"))+
-  labs(title = "Distribution of 2020 crimes for 115 Minneapolis census tracts", x="Number of crimes", y = "Density")
+  labs(title = "Distribution of 2020 crimes for 115 Minneapolis census tracts", x="Number of crimes", y = "Density")+
+  theme(strip.background = element_blank())
 ```
 
 ### ORIGINAL POISSON MODEL
@@ -158,14 +153,11 @@ min %>%
   ggplot()+
   geom_sf(aes(fill = residualsOriginal))+
   scale_fill_gradient2(mid = "white", high = "red", low = "blue")+
-  theme_classic()+
+  labs(title = "Poisson", fill = "Residual")+
   theme(axis.text = element_blank(), 
         axis.ticks = element_blank(), 
-        axis.line = element_blank(), 
-        plot.title = element_text(family = "mono", size = 10, hjust=0.5), 
-        legend.text = element_text(family = "mono"), 
-        legend.title = element_text(family = "mono", size=9))+
-  labs(title = "Poisson", fill = "Residual")
+        axis.line = element_blank(),
+        plot.title = element_text(hjust=0.5)) 
 
 spdep::moran.test(min$residualsOriginal, nb2listw(Queen, style = "B"), randomisation = FALSE, alternative = "two.sided")
 ```
@@ -193,15 +185,11 @@ min %>%
   ggplot()+
   geom_sf(aes(fill = spatial_violent_resid))+
   scale_fill_gradient2(mid = "white", high = "red", low = "blue")+
-  theme_classic()+
+  labs(title = "Spatial Poisson", fill = "Residual")+
   theme(axis.text = element_blank(), 
         axis.ticks = element_blank(), 
-        axis.line = element_blank(), 
-        plot.title.position = "plot", 
-        plot.title = element_text(family = "mono", size=10, hjust=0.5), 
-        legend.text = element_text(family = "mono"), 
-        legend.title = element_text(family = "mono", size=9))+
-  labs(title = "Spatial Poisson", fill = "Residual")
+        axis.line = element_blank(),
+        plot.title = element_text(hjust=0.5)) 
 ```
 
 Create table
@@ -258,14 +246,11 @@ min %>%
   ggplot()+
   geom_sf(aes(fill = residualsOriginal_theft))+
   scale_fill_gradient2(mid = "white", high = "red", low = "blue")+
-  theme_classic()+
   theme(axis.text = element_blank(), 
         axis.ticks = element_blank(), 
         axis.line = element_blank(), 
         plot.title.position = "plot", 
-        plot.title = element_text(family = "mono", size = 10, hjust=0.5), 
-        legend.text = element_text(family = "mono"), 
-        legend.title = element_text(family = "mono", size=9))+
+        plot.title = element_text(hjust=0.5))+
   labs(title = "Poisson", fill = "Residual")
 
 spdep::moran.test(min$residualsOriginal_theft, nb2listw(Queen, style = "B"), randomisation = FALSE, alternative = "two.sided")
@@ -291,15 +276,12 @@ min %>%
   ggplot()+
   geom_sf(aes(fill = spatial_theft_resid))+
   scale_fill_gradient2(mid = "white", high = "red", low = "blue")+
-  theme_classic()+
   theme(axis.text = element_blank(), 
         axis.ticks = element_blank(), 
         axis.line = element_blank(), 
         plot.title.position = "plot", 
-        plot.title = element_text(family = "mono", hjust=0.5, size=10), 
-        legend.text = element_text(family = "mono"), 
-        legend.title = element_text(family = "mono", size=9))+
-  labs(title = "Spatial", fill = "Residual")
+        plot.title = element_text(hjust=0.5))+
+  labs(title = "Spatial Poisson", fill = "Residual")
 ```
 
 

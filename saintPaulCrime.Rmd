@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This is the 6th file in my data cleaning process and works on converting the Saint Paul data to coordinates. 
+This file shows my process for downloading and cleaning Saint Paul crime data. 
 
 ```{r}
 library(tidyverse)

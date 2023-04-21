@@ -9,8 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This is the 6th file in my data cleaning and exploration process. \
-Steps in this file: Exploratory graphs using cleaned Minneapolis and Saint Paul crime data. 
+In this file I create exploratory graphs using cleaned Minneapolis and Saint Paul crime data. 
 
 ## Data Loading 
 
@@ -90,17 +89,10 @@ minneapolisCrime %>%
   ggplot(aes(x=as.numeric(year), y=n, color = OffenseGroup))+
   geom_point()+
   geom_line()+
-  theme_classic()+
   scale_x_continuous(breaks = c(2010, 2012, 2014, 2016, 2018, 2020, 2022))+
   scale_y_continuous(labels = scales::comma)+
   labs(title = "Minneapolis Annual Crime Count", color = "Offense", y = "Count", x = "Year")+
-  scale_color_manual(values = c("#024D72", "#6FA1B7", "#D07061"))+
-  theme(plot.title.position = "plot", 
-        plot.title = element_text(family = "mono"), 
-        legend.text = element_text(family = "mono"), 
-        legend.title = element_text(family = "mono"), 
-        axis.title = element_text(family = "mono"), 
-        axis.text = element_text(family = "mono"))
+  scale_color_manual(values = c("#024D72", "#6FA1B7", "#D07061"))
 ```
 
 Spatial crime patterns: Theft and violent crime maps for 2010 and 2020 in Minneapolis.
@@ -118,16 +110,29 @@ tract_aggregated %>%
   geom_sf(aes(fill = violentD))+
   facet_wrap(~year)+
   scale_fill_brewer(palette = "Blues")+
-  theme_classic()+
   theme(axis.line = element_blank(), 
         axis.text = element_blank(),
         axis.ticks = element_blank(),
-        plot.title = element_text(hjust=0.5, family = "mono"), 
-        strip.background = element_blank(), 
-        legend.title = element_text(family = "mono"), 
-        legend.text = element_text(family = "mono"), 
-        strip.text = element_text(family = "mono"))+
+        plot.title = element_text(hjust=0.5),  
+        strip.background = element_blank())+
   labs(title = "Violent crime count by census tract", fill = "Count")
+
+tract_aggregated %>%
+  filter(year %in% c(2020)) %>%
+  mutate(violentD= case_when(Violent <=10 ~ "0-10",
+                               Violent >10 & Violent  <=25 ~ "11-25",
+                               Violent >25 & Violent <= 50 ~ "26-50", 
+                               Violent >50 & Violent <= 100 ~ "51-100",
+                               TRUE ~ "101+")) %>%
+  mutate(violentD= fct_relevel(violentD, levels = c("0-10", "11-25", "26-50", "51-100", "101+"))) %>%
+  ggplot()+
+  geom_sf(aes(fill = violentD))+
+  scale_fill_brewer(palette = "Blues")+
+  theme(axis.line = element_blank(), 
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust=0.5))+
+  labs(title = "2020 Minneapolis violent crime count", fill = "Count")
 
 tract_aggregated %>%
   filter(year %in% c(2010, 2020)) %>%
@@ -140,16 +145,11 @@ tract_aggregated %>%
   geom_sf(aes(fill = theftD))+
   facet_wrap(~year)+
   scale_fill_brewer(palette = "Blues")+
-  theme_classic()+
-  #annotate("point", x = -93.2277, y = 44.974, colour = "white", size = 1) +
-  theme(axis.line = element_blank(), 
+    theme(axis.line = element_blank(), 
         axis.text = element_blank(),
         axis.ticks = element_blank(),
-        plot.title = element_text(hjust=0.5, family = "mono"), 
-        strip.background = element_blank(), 
-        legend.title = element_text(family = "mono"), 
-        legend.text = element_text(family = "mono"), 
-        strip.text = element_text(family = "mono"))+
+        plot.title = element_text(hjust=0.5),  
+        strip.background = element_blank())+
   labs(title = "Theft count by census tract", fill = "Count", x = "", y="")
 ```
 
@@ -199,54 +199,33 @@ Explore 2020 distribution of violent crimes (as a rate)
 ```{r}
 mn2020 <- tract_aggregated %>%
   filter(year == 2020) %>%
-  dplyr::select(tractmod, year, violent_1000_apprx) %>%
-  mutate(violent_d = case_when(violent_1000_apprx <=5 ~ "0-5",
-                               violent_1000_apprx >6 & violent_1000_apprx  <=10 ~ "6-10",
-                               violent_1000_apprx  >10 & violent_1000_apprx <= 15 ~ "11-15", 
-                               TRUE ~ "16+"))
+  dplyr::select(tractmod, year, Violent) %>%
+  mutate(violentD= case_when(Violent <=10 ~ "0-10",
+                               Violent >10 & Violent  <=25 ~ "11-25",
+                               Violent >25 & Violent <= 50 ~ "26-50", 
+                               Violent >50 & Violent <= 100 ~ "51-100",
+                               TRUE ~ "101+")) %>%
+  mutate(violentD= fct_relevel(violentD, levels = c("0-10", "11-25", "26-50", "51-100", "101+")))
 sp2020 <- tract_aggregated_sp %>%
   filter(year == 2020) %>%
-  dplyr::select(tractmod, year, violent_1000_apprx) %>%
-  mutate(violent_d = case_when(violent_1000_apprx <=5 ~ "0-5",
-                               violent_1000_apprx >6 & violent_1000_apprx  <=10 ~ "6-10",
-                               violent_1000_apprx  >10 & violent_1000_apprx <= 15 ~ "11-15", 
-                               TRUE ~ "16+"))
+  dplyr::select(tractmod, year, Violent) %>%
+  mutate(violentD= case_when(Violent <=10 ~ "0-10",
+                               Violent >10 & Violent  <=25 ~ "11-25",
+                               Violent >25 & Violent <= 50 ~ "26-50", 
+                               Violent >50 & Violent <= 100 ~ "51-100",
+                               TRUE ~ "101+")) %>%
+  mutate(violentD= fct_relevel(violentD, levels = c("0-10", "11-25", "26-50", "51-100", "101+")))
 
 bind_rows(mn2020, sp2020) %>%
-  mutate(violent_d = fct_relevel(violent_d, levels = c("0-5", "6-10", "11-15", "16+"))) %>%
   ggplot()+
-  geom_sf(aes(fill =violent_d), override.order=TRUE)+
-  theme_classic()+
+  geom_sf(aes(fill =violentD), override.order=TRUE)+
   scale_fill_brewer(palette = "Blues")+
-  labs(title = "Violent crimes per 1000 residents in 2020 by census tract", fill = "", y = "", x = "")+
+  labs(title = "2020 violent crime by census tract in Minneapolis-Saint Paul", fill = "", y = "", x = "")+
+   theme(axis.line = element_blank(), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank())+
   annotate("point", x = -93.1691, y = 44.938, colour = "black", size = 1) +
-  annotate(geom = "text", x = -93.1691, y = 44.945, label = "Macalester \nCollege", size = 3, color = "black")+
-  annotate("point", x = -93.1022, y = 44.955, colour = "black", size = 1) +
-  annotate(geom = "text", x = -93.1022, y = 44.9525, label = "Capitol", size = 3, color = "black")+
-  annotate("point", x = -93.2776, y = 44.9817, colour = "black", size = 1) +
-  annotate(geom = "text", x = -93.285, y = 44.9817, label = "Target \nField", size = 3, color = "black")+
-  annotate("point", x = -93.2732, y = 44.9585, colour = "black", size = 1) +
-  annotate(geom = "text", x = -93.2732, y = 44.9615, label = "MIA", size = 3, color = "black")+
-  theme(plot.title.position = "plot", 
-        plot.title = element_text(family = "mono", size = 12), 
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(), 
-        axis.line = element_blank(), 
-        legend.text = element_text(family = "mono"))
-
-mn2020 %>%
-mutate(violent_d = fct_relevel(violent_d, levels = c("0-5", "6-10", "11-15", "16+"))) %>%
-  ggplot()+
-  geom_sf(aes(fill =violent_d), override.order=TRUE)+
-  theme_classic()+
-  scale_fill_brewer(palette = "Blues")+
-  labs(title = "Violent Crime", fill = "", y = "", x = "")+
-  theme(plot.title.position = "plot", 
-        plot.title = element_text(family = "mono", size = 10, hjust=0.5), 
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(), 
-        axis.line = element_blank(), 
-        legend.text = element_text(family = "mono"))
+  annotate(geom = "text", x = -93.1691, y = 44.939, label = "Macalester \nCollege", size = 2, color = "black", family = "Coming Soon")
 ```
 
 Explore 2020 distribution of thefts (as a rate)
@@ -434,17 +413,10 @@ saintpaulcrime %>%
   ggplot(aes(x=as.numeric(year), y=n, color = OffenseCat))+
   geom_point()+
   geom_line()+
-  theme_classic()+
   scale_x_continuous(breaks = c(2015, 2017, 2019, 2021))+
   scale_y_continuous(labels = scales::comma)+
   labs(title = "Saint Paul Annual Crime Count", color = "Offense", y = "Count", x = "Year")+
-  scale_color_manual(values = c("#024D72", "#6FA1B7", "#D07061"))+
-  theme(plot.title.position = "plot", 
-        plot.title = element_text(family = "mono"), 
-        legend.text = element_text(family = "mono"), 
-        legend.title = element_text(family = "mono"), 
-        axis.title = element_text(family = "mono"), 
-        axis.text = element_text(family = "mono"))
+  scale_color_manual(values = c("#024D72", "#6FA1B7", "#D07061"))
 ```
 
 ```{r}
@@ -459,15 +431,11 @@ tract_aggregated_sp %>%
   ggplot()+
   geom_sf(aes(fill = violentD))+
   scale_fill_brewer(palette = "Blues")+
-  theme_classic()+
   theme(axis.line = element_blank(), 
         axis.text = element_blank(),
         axis.ticks = element_blank(),
-        plot.title = element_text(hjust=0.5, family = "mono"), 
-        strip.background = element_blank(), 
-        legend.title = element_text(family = "mono"), 
-        legend.text = element_text(family = "mono"), 
-        strip.text = element_text(family = "mono"))+
+        plot.title = element_text(hjust=0.5), 
+        strip.background = element_blank())+
   labs(title = "Recorded violent crime counts by census tract in 2020", fill = "Count")
 
 tract_aggregated_sp %>%
@@ -480,16 +448,12 @@ tract_aggregated_sp %>%
   ggplot()+
   geom_sf(aes(fill = theftD))+
   scale_fill_brewer(palette = "Blues")+
-  theme_classic()+
   #annotate("point", x = -93.2277, y = 44.974, colour = "white", size = 1) +
   theme(axis.line = element_blank(), 
         axis.text = element_blank(),
         axis.ticks = element_blank(),
-        plot.title = element_text(hjust=0.5, family = "mono"), 
-        strip.background = element_blank(), 
-        legend.title = element_text(family = "mono"), 
-        legend.text = element_text(family = "mono"), 
-        strip.text = element_text(family = "mono"))+
+        plot.title = element_text(hjust=0.5), 
+        strip.background = element_blank())+
   labs(title = "Recorded theft counts by census tract in 2020", fill = "Count", x = "", y="")
 ```
 
